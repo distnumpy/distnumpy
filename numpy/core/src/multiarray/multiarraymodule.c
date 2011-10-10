@@ -3894,6 +3894,8 @@ PyMODINIT_FUNC initmultiarray(void) {
     //DISTNUMPY
     if(import_distnumpy())
         goto err;
+    PyDistArray_Init();
+    Py_AtExit(PyDistArray_Exit);
 
     return RETVAL;
 

@@ -1,16 +1,33 @@
+/*
+ * Copyright 2011 Mads R. B. Kristensen <madsbk@gmail.com>
+ *
+ * This file is part of DistNumPy <https://github.com/distnumpy>.
+ *
+ * DistNumPy is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * DistNumPy is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with DistNumPy. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef DISTNUMPY_H
 #define DISTNUMPY_H
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Only import when compiling distnumpymodule.c */
+//Only import when compiling distnumpymodule.c
 #ifdef DISTNUMPY_MODULE
 #include "ndarraytypes.h"
 #include "arrayobject.h"
 #endif
-
-/* Public header file for disnumpy */
 
 //Flag indicating that it is a distributed array
 #define DNPY_DIST 0x2000
@@ -22,56 +39,8 @@ extern "C" {
 #define PyDistArray_ISDIST_ONENODE(m) PyArray_CHKFLAGS(m,DNPY_DIST_ONENODE)
 #define PyDistArray_DNDUID(obj) (((PyArrayObject *)(obj))->dnduid)
 
-
-/* C API functions */
-
-#define PyDistArray_NewBaseArray_NUM 0
-#define PyDistArray_NewBaseArray_RETURN npy_intp
-#define PyDistArray_NewBaseArray_PROTO (PyArrayObject *pyary, npy_intp onerank)
-
-/* Total number of C API pointers */
-#define DistNumPy_API_pointers 1
-
-
-#ifdef DISTNUMPY_MODULE
-/* This section is used when compiling distnumpymodule.c */
-
-static PyDistArray_NewBaseArray_RETURN PyDistArray_NewBaseArray PyDistArray_NewBaseArray_PROTO;
-
-#else
-/* This section is used in modules that use distnumpy's API */
-
-static void **DistNumPy_API;
-
-#define PyDistArray_NewBaseArray \
- (*(PyDistArray_NewBaseArray_RETURN (*)PyDistArray_NewBaseArray_PROTO) DistNumPy_API[PyDistArray_NewBaseArray_NUM])
-
-
-/* Return -1 and set exception on error, 0 on success. */
-static int
-import_distnumpy(void)
-{
-    PyObject *c_api_object;
-    PyObject *module;
-
-    module = PyImport_ImportModule("distnumpy");
-    if (module == NULL)
-        return -1;
-
-    c_api_object = PyObject_GetAttrString(module, "_C_API");
-    if (c_api_object == NULL) {
-        Py_DECREF(module);
-        return -1;
-    }
-    if (PyCObject_Check(c_api_object))
-        DistNumPy_API = (void **)PyCObject_AsVoidPtr(c_api_object);
-
-    Py_DECREF(c_api_object);
-    Py_DECREF(module);
-    return 0;
-}
-
-#endif
+//Import the API.
+#include "distnumpy_api.h"
 
 #ifdef __cplusplus
 }

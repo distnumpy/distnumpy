@@ -1,35 +1,12 @@
-#ifndef DISTNUMPY_H
-#define DISTNUMPY_H
+#ifndef DISTNUMPY_PRIV_H
+#define DISTNUMPY_PRIV_H
 #include "mpi.h"
+#include <sys/time.h>
+#include "ufuncobject.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-//ufunc definitions from numpy/ufuncobject.h.
-//They are included here instead.
-typedef void (*PyUFuncGenericFunction)
-             (char **, npy_intp *, npy_intp *, void *);
-typedef struct {
-    PyObject_HEAD
-    int nin, nout, nargs;
-    int identity;
-    PyUFuncGenericFunction *functions;
-    void **data;
-    int ntypes;
-    int check_return;
-    char *name, *types;
-    char *doc;
-    void *ptr;
-    PyObject *obj;
-    PyObject *userloops;
-    int core_enabled;
-    int core_num_dim_ix;
-    int *core_num_dims;
-    int *core_dim_ixs;
-    int *core_offsets;
-    char *core_signature;
-} PyUFuncObject;
 
 //#define DISTNUMPY_DEBUG
 //#define DNPY_STATISTICS
@@ -140,12 +117,12 @@ struct dndarray_struct
     //MPI-process rank.
     npy_intp onerank;
 };
-
+/*
 //dndslice constants.
 #define PseudoIndex -1//Adds a extra 1-dim - 'A[1,newaxis]'
 #define RubberIndex -2//A[1,2,...] (Not used in distnumpy.inc)
 #define SingleIndex -3//Dim not visible - 'A[1]'
-
+*/
 //Type describing a slice of a dimension.
 typedef struct
 {
@@ -363,8 +340,69 @@ typedef struct
                        DNPY_WORK_BUFFER_MEM_ALIGNMENT == 0);           \
 }
 
+//MPI process variables.
+static int myrank, worldsize;
+static npy_intp blocksize;
+#ifndef DNPY_SPMD
+static npy_intp msg[DNPY_MAX_MSG_SIZE];
+#endif
+static npy_intp initmsg_not_handled=1;
+//The work buffer and its next free slot.
+static void *workbuf;
+static void *workbuf_nextfree;
+static void *workbuf_max;
+//Unique identification counter
+static npy_intp uid_count=0;
+//Array-views belonging to local MPI process
+static dndview dndviews[DNPY_MAX_NARRAYS];
+static npy_intp ndndarrays=0;//Current number of dndviews allocated.
+static npy_intp dndviews_uid[DNPY_MAX_NARRAYS];
+//Cartesian dimension information - one for every dimension-order.
+static int *cart_dim_strides[NPY_MAXDIMS];
+static int *cart_dim_sizes[NPY_MAXDIMS];
+//Pointer to the python module who has the ufunc operators.
+static PyObject *ufunc_module;
+//The ready queue for operations and its current size.
+static dndop *ready_queue[DNPY_RDY_QUEUE_MAXSIZE];
+static npy_intp ready_queue_size=0;
+//Unique MPI tag.
+static int mpi_tag=0;
+//Memory pool.
+static dndmem *mem_pool = NULL;
+//Pointer to the PyUFunc_Reduce function in umath_ufunc_object.inc
+typedef PyObject* (reduce_func_type)(PyUFuncObject *self,
+                                     PyArrayObject *arr,
+                                     PyArrayObject *out,
+                                     int axis, int otype,
+                                     void *threadlock);
+static reduce_func_type *reduce_func = NULL;
+//Prototype for the DAGs.
+static void dag_svb_flush(int free_workbuf);
+static void dag_svb_add(dndnode *nodes, int nnodes, int force_laziness);
+//Variables for statistics.
+#ifdef DNPY_STATISTICS
+    static int node_uid_count = 0;
+    static int op_uid_count = 0;
+    static dndarray *rootarray = NULL;
+#endif
+
+//Variables for timing.
+struct timeval tv;
+struct timezone tz;
+static dndtime dndt;
+unsigned long long totaldelta;
+
+#define DNDTIME(output)                                         \
+    gettimeofday(&tv, &tz);                                     \
+    output = (unsigned long long) tv.tv_usec +                  \
+             (unsigned long long) tv.tv_sec * 1000000;
+#define DNDTIME_SUM(in,sum)                                     \
+    gettimeofday(&tv, &tz);                                     \
+    sum += ((unsigned long long) tv.tv_usec +                   \
+            (unsigned long long) tv.tv_sec * 1000000) - in;
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* !defined(DISTNUMPY_PRIV_H) */
