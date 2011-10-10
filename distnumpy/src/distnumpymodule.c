@@ -4,15 +4,6 @@
 #include "arrayobject.h"
 
 
-static int
-spam_system(const char *command)
-{
-    npy_intp tmp = 42;
-
-    PyArray_IntTupleFromIntp(1,&tmp);
-    return system(command);
-}
-
 static PyObject *
 PySpam_System(PyObject *self, PyObject *args)
 {
@@ -21,7 +12,7 @@ PySpam_System(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "s", &command))
         return NULL;
-    sts = spam_system(command);
+    sts = system(command);
     return Py_BuildValue("i", sts);
 }
 
@@ -31,6 +22,13 @@ static PyMethodDef DistNumPyMethods[] = {
      "Execute a shell command."},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
+
+static npy_intp PyDistArray_NewBaseArray(PyArrayObject *pyary, npy_intp onerank)
+{
+
+    return 42;
+}
+
 
 
 PyMODINIT_FUNC
@@ -45,7 +43,7 @@ initdistnumpy(void)
         return;
 
     /* Initialize the C API pointer array */
-    DistNumPy_API[dnumpy_create_dndarray_NUM] = (void *)dnumpy_create_dndarray;
+    DistNumPy_API[PyDistArray_NewBaseArray_NUM] = (void *)PyDistArray_NewBaseArray;
 
 
     /* Create a CObject containing the API pointer array's address */

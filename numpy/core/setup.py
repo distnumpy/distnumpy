@@ -796,6 +796,10 @@ def configuration(parent_package='',top_path=None):
         umath_src.append(generate_umath_templated_sources)
         umath_src.append(join('src', 'umath', 'funcs.inc.src'))
 
+    #DISTNUMPY
+    config.add_include_dirs(join('..','..','distnumpy','include'))
+    multiarray_deps.append(join('..','..','distnumpy','include', 'spammodule.h'))
+
     config.add_extension('multiarray',
                          sources = multiarray_src +
                                 [generate_config_h,

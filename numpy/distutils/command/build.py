@@ -35,3 +35,10 @@ class build(old_build):
 
     def run(self):
         old_build.run(self)
+
+        #DISTNUMPY
+        #Building DistNumPy as the last part of the build command.
+        plat_specifier = ".%s-%s" % (get_platform(), sys.version[0:3])
+        build_src = os.path.join(self.build_base, 'src'+plat_specifier)
+        import distnumpy
+        distnumpy.build(build_src)
