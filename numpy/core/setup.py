@@ -798,7 +798,7 @@ def configuration(parent_package='',top_path=None):
 
     #DISTNUMPY
     config.add_include_dirs(join('..','..','distnumpy','include'))
-    multiarray_deps.append(join('..','..','distnumpy','include', 'spammodule.h'))
+    multiarray_deps.append(join('..','..','distnumpy','include', 'distnumpy.h'))
 
     config.add_extension('multiarray',
                          sources = multiarray_src +
