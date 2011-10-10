@@ -45,6 +45,9 @@ NPY_NO_EXPORT int NPY_NUMUSERTYPES = 0;
 #include "convert_datatype.h"
 #include "nditer_pywrap.h"
 
+/* DISTNUMPY */
+#include "distnumpy.h"
+
 /* Only here for API compatibility */
 NPY_NO_EXPORT PyTypeObject PyBigArray_Type;
 
@@ -1565,9 +1568,11 @@ static PyObject *
 _array_fromobject(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *kws)
 {
     PyObject *op, *ret = NULL;
+    /* DISTNUMPY */
     static char *kwd[]= {"object", "dtype", "copy", "order", "subok",
-                         "ndmin", NULL};
+                         "ndmin", "dist", NULL};
     Bool subok = FALSE;
+    Bool dist = FALSE;
     Bool copy = TRUE;
     int ndmin = 0, nd;
     PyArray_Descr *type = NULL;
@@ -1580,12 +1585,15 @@ _array_fromobject(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *kws)
                         "only 2 non-keyword arguments accepted");
         return NULL;
     }
-    if(!PyArg_ParseTupleAndKeywords(args, kws, "O|O&O&O&O&i", kwd, &op,
-                PyArray_DescrConverter2, &type,
-                PyArray_BoolConverter, &copy,
-                PyArray_OrderConverter, &order,
-                PyArray_BoolConverter, &subok,
-                &ndmin)) {
+    if(!PyArg_ParseTupleAndKeywords(args, kws, "O|O&O&O&O&iO&", kwd, &op,
+                                    PyArray_DescrConverter2,
+                                    &type,
+                                    PyArray_BoolConverter, &copy,
+                                    PyArray_OrderConverter, &order,
+                                    PyArray_BoolConverter, &subok,
+                                    &ndmin,
+                                    /* DISTNUMPY */
+                                    PyArray_BoolConverter, &dist)) {
         goto clean_type;
     }
 
@@ -1596,8 +1604,9 @@ _array_fromobject(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *kws)
         goto clean_type;
     }
     /* fast exit if simple call */
-    if ((subok && PyArray_Check(op))
-            || (!subok && PyArray_CheckExact(op))) {
+    if(!dist && ((subok && PyArray_Check(op)) ||
+                (!subok && PyArray_CheckExact(op))))
+    {
         if (type == NULL) {
             if (!copy && STRIDING_OK(op, order)) {
                 Py_INCREF(op);
@@ -1647,6 +1656,11 @@ _array_fromobject(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *kws)
 
     flags |= NPY_FORCECAST;
     Py_XINCREF(type);
+
+    /* DISTNUMPY */
+    if(dist)
+        flags |= DNPY_DIST;
+
     ret = PyArray_CheckFromAny(op, type, 0, 0, flags, NULL);
 
  finish:
@@ -1671,18 +1685,26 @@ clean_type:
 static PyObject *
 array_empty(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *kwds)
 {
-
-    static char *kwlist[] = {"shape","dtype","order",NULL};
+    /* DISTNUMPY */
+    static char *kwlist[] = {"shape","dtype","order","dist","onerank",NULL};
     PyArray_Descr *typecode = NULL;
     PyArray_Dims shape = {NULL, 0};
     NPY_ORDER order = NPY_CORDER;
     Bool fortran;
     PyObject *ret = NULL;
+    Bool dist = FALSE;
+    int flags = 0;
+    PyObject *onedist = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&|O&O&", kwlist,
-                PyArray_IntpConverter, &shape,
-                PyArray_DescrConverter, &typecode,
-                PyArray_OrderConverter, &order)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&|O&O&O&O",
+                                     kwlist, PyArray_IntpConverter,
+                                     &shape,
+                                     PyArray_DescrConverter,
+                                     &typecode,
+                                     PyArray_OrderConverter, &order,
+                                     /* DISTNUMPY */
+                                     PyArray_BoolConverter, &dist,
+                                     &onedist)) {
         goto fail;
     }
 
@@ -1699,7 +1721,18 @@ array_empty(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *kwds)
             goto fail;
     }
 
-    ret = PyArray_Empty(shape.len, shape.ptr, typecode, fortran);
+    /* DISTNUMPY */
+    if(fortran)
+        flags |= NPY_FORTRAN;
+
+    if(dist)
+    {
+        flags |= DNPY_DIST;
+        if(onedist != NULL)
+            flags |= DNPY_DIST_ONENODE;
+    }
+
+    ret = PyArray_Empty(shape.len, shape.ptr, typecode, flags);
     PyDimMem_FREE(shape.ptr);
     return ret;
 
@@ -3857,6 +3890,11 @@ PyMODINIT_FUNC initmultiarray(void) {
     if (set_typeinfo(d) != 0) {
         goto err;
     }
+
+    //DISTNUMPY
+    if(import_distnumpy())
+        goto err;
+
     return RETVAL;
 
  err:

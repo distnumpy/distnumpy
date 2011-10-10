@@ -25,6 +25,9 @@
 
 #include "lowlevel_strided_loops.h"
 
+/* DISTNUMPY */
+#include "distnumpy.h"
+
 /*
  * Reading from a file or a string.
  *
@@ -1032,13 +1035,18 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
     self->data = NULL;
     if (data == NULL) {
         self->flags = DEFAULT;
-        if (flags) {
+        /* DISTNUMPY */
+        if (flags & NPY_FORTRAN) {
             self->flags |= NPY_F_CONTIGUOUS;
             if (nd > 1) {
                 self->flags &= ~NPY_C_CONTIGUOUS;
             }
-            flags = NPY_F_CONTIGUOUS;
+            flags = NPY_FORTRAN | (flags & DNPY_DIST) |
+                                  (flags & DNPY_DIST_ONENODE);
         }
+        /* DISTNUMPY */
+        self->flags |= flags & DNPY_DIST;
+        self->flags |= flags & DNPY_DIST_ONENODE;
     }
     else {
         self->flags = (flags & ~NPY_UPDATEIFCOPY);
@@ -1073,30 +1081,48 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
         self->flags |= NPY_F_CONTIGUOUS;
     }
 
-    if (data == NULL) {
+    /* DISTNUMPY */
+    self->data = data;
+    if (self->data == NULL) {
+        if(PyDistArray_ISDIST(self))
+        {
+            npy_intp onedist = -1;
+            if(PyDistArray_ISDIST_ONENODE(self))
+            {
+                onedist = PyInt_AsLong(obj);
+                obj = NULL;
+            }
+            self->dnduid = PyDistArray_NewBaseArray(self, onedist);
+            //Make sure that set-/getitem are used.
+            //self->descr->hasobject |= NPY_USE_GETITEM;
+            //self->descr->hasobject |= NPY_USE_SETITEM;
+            //NumPy should only allocate elsize.
+            sd = 0;
+            printf("Creating Dist Array\n");
+        }
+
         /*
          * Allocate something even for zero-space arrays
          * e.g. shape=(0,) -- otherwise buffer exposure
          * (a.data) doesn't work as it should.
          */
-
         if (sd == 0) {
             sd = descr->elsize;
         }
-        data = PyDataMem_NEW(sd);
-        if (data == NULL) {
+        self->data = PyDataMem_NEW(sd);
+        if (self->data == NULL) {
             PyErr_NoMemory();
             goto fail;
         }
-        self->flags |= OWNDATA;
 
         /*
          * It is bad to have unitialized OBJECT pointers
          * which could also be sub-fields of a VOID array
          */
         if (PyDataType_FLAGCHK(descr, NPY_NEEDS_INIT)) {
-            memset(data, 0, sd);
+            memset(self->data, 0, sd);
         }
+        self->flags |= OWNDATA;
     }
     else {
         /*
@@ -1104,8 +1130,18 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
          * Caller must arrange for this to be reset if truly desired
          */
         self->flags &= ~OWNDATA;
+
+        /* DISTNUMPY */
+        if(PyDistArray_ISDIST(self))
+        {
+            PyErr_SetString(PyExc_RuntimeError,
+                            "PyArray_NewFromDescr does not support "
+                            "creating a view based on a distributed "
+                            "array. Only the creations of new arrays "
+                            "are supported\n");
+            goto fail;
+        }
     }
-    self->data = data;
 
     /*
      * If the strides were provided to the function, need to
