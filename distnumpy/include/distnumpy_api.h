@@ -33,12 +33,16 @@ extern "C" {
 #define PyDistArray_Exit_RETURN void
 #define PyDistArray_Exit_PROTO (void)
 
-#define PyDistArray_NewBaseArray_NUM 2
+#define PyDistArray_MasterSlaveSplit_NUM 2
+#define PyDistArray_MasterSlaveSplit_RETURN PyObject *
+#define PyDistArray_MasterSlaveSplit_PROTO (PyObject *self, PyObject *args)
+
+#define PyDistArray_NewBaseArray_NUM 3
 #define PyDistArray_NewBaseArray_RETURN npy_intp
 #define PyDistArray_NewBaseArray_PROTO (PyArrayObject *pyary, npy_intp onerank)
 
 /* Total number of C API pointers */
-#define DistNumPy_API_pointers 3
+#define DistNumPy_API_pointers 4
 
 
 #ifdef DISTNUMPY_MODULE
@@ -46,6 +50,7 @@ extern "C" {
 
 static PyDistArray_Init_RETURN PyDistArray_Init PyDistArray_Init_PROTO;
 static PyDistArray_Exit_RETURN PyDistArray_Exit PyDistArray_Exit_PROTO;
+static PyDistArray_MasterSlaveSplit_RETURN PyDistArray_MasterSlaveSplit PyDistArray_MasterSlaveSplit_PROTO;
 static PyDistArray_NewBaseArray_RETURN PyDistArray_NewBaseArray PyDistArray_NewBaseArray_PROTO;
 
 #else
@@ -58,6 +63,9 @@ static void **DistNumPy_API;
 
 #define PyDistArray_Exit \
  (*(PyDistArray_Exit_RETURN (*)PyDistArray_Exit_PROTO) DistNumPy_API[PyDistArray_Exit_NUM])
+
+#define PyDistArray_MasterSlaveSplit \
+ (*(PyDistArray_MasterSlaveSplit_RETURN (*)PyDistArray_MasterSlaveSplit_PROTO) DistNumPy_API[PyDistArray_MasterSlaveSplit_NUM])
 
 #define PyDistArray_NewBaseArray \
  (*(PyDistArray_NewBaseArray_RETURN (*)PyDistArray_NewBaseArray_PROTO) DistNumPy_API[PyDistArray_NewBaseArray_NUM])

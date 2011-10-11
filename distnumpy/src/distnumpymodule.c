@@ -20,9 +20,21 @@
 #include <Python.h>
 #define DISTNUMPY_MODULE
 #include "distnumpy.h"
+//Tells numpy that this file initiate the module.
+#define PY_ARRAY_UNIQUE_SYMBOL DISTNUMPY_ARRAY_API
 #include "arrayobject.h"
 #include "distnumpy_priv.h"
 #include <mpi.h>
+
+//We include all .h and .c files.
+//NumPy distutil complains when having multiple module files.
+#include "helpers.h"
+#include "array_database.h"
+#include "memory.h"
+#include "helpers.c"
+#include "array_database.c"
+#include "memory.c"
+
 
 /*
  * ===================================================================
@@ -109,7 +121,7 @@ PyDistArray_Exit(void)
 {
     int i;
 
-/*
+
 #ifndef DNPY_SPMD
     if(myrank == 0)
     {
@@ -123,8 +135,8 @@ PyDistArray_Exit(void)
     }
 #endif
     //Make sure that the sub-view-block DAG is flushed.
-    dag_svb_flush(1);
-*/
+    //dag_svb_flush(1);
+
     //Free buffers.
     free(workbuf);
     //Free Cartesian Information.
@@ -142,29 +154,164 @@ PyDistArray_Exit(void)
         printf("DistNumPy - Warning %d distributed arrays didn't get "
                "deallocated.\n", nleaks);
 
-    //Free the memory pool.
-//    free_mem_pool(mem_pool);
+    //De-allocate the memory pool.
+    mem_pool_finalize();
 
     MPI_Finalize();
 } /* PyDistArray_Exit */
 
 
+/*NUMPY_API
+ * ===================================================================
+ * Public
+ * From this point on the master will continue with the pyton code
+ * and the slaves will stay in C.
+ * If returning False the Python must call sys.exit(0) immediately.
+ */
 static PyObject *
-PySpam_System(PyObject *self, PyObject *args)
+PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
 {
-    const char *command;
-    int sts;
+    //Initiate timers to zero.
+    memset(&dndt, 0, sizeof(dndtime));
+    DNDTIME(totaldelta)
 
-    if (!PyArg_ParseTuple(args, "s", &command))
-        return NULL;
-    sts = system(command);
-    return Py_BuildValue("i", sts);
-}
+#ifdef DNPY_SPMD
+    return Py_True;
+#else
+
+    if(myrank == 0)
+        return Py_True;
+
+    int shutdown = 0;
+    while(shutdown == 0)//Work loop
+    {
+        char *t1, *t2, *t3;
+        npy_intp d1, d2, d3, d4, d5;
+        long l1;
+        dndview *ary, *ary2, *ary3;
+        //Receive message from master.
+        MPI_Bcast(msg, DNPY_MAX_MSG_SIZE, MPI_BYTE, 0, MPI_COMM_WORLD);
+        char *msg_data = (char *) &msg[1];
+        #ifdef DISTNUMPY_DEBUG
+            printf("Rank %d received msg: ", myrank);
+        #endif
+        switch(msg[0])
+        {
+            case DNPY_INIT_PGRID:
+                //do_INIT_PGRID((int*)msg_data);
+                break;
+            case DNPY_INIT_BLOCKSIZE:
+                //blocksize = *((npy_intp*)msg_data);
+                break;
+            case DNPY_CREATE_ARRAY:
+                t1 = msg_data + sizeof(dndarray);
+                //do_CREATE_ARRAY((dndarray*) msg_data, (dndview*) t1);
+                break;
+            case DNPY_DESTROY_ARRAY:
+                //do_DESTROY_ARRAY(*((npy_intp*)msg_data));
+                break;
+            case DNPY_CREATE_VIEW:
+                d1 = *((npy_intp*)msg_data);
+                t1 = msg_data+sizeof(npy_intp);
+                //do_CREATE_VIEW(d1, (dndview*) t1);
+                break;
+            case DNPY_SHUTDOWN:
+                #ifdef DISTNUMPY_DEBUG
+                    printf("SHUTDOWN\n");
+                #endif
+                shutdown = 1;
+                break;
+            case DNPY_EVALFLUSH:
+                #ifdef DISTNUMPY_DEBUG
+                    printf("EVALFLUSH\n");
+                #endif
+                //dag_svb_flush(1);
+                break;
+            case DNPY_PUT_ITEM:
+                ary = get_dndview(*((npy_intp*)msg_data));
+                t1 = msg_data+sizeof(npy_intp);
+                t2 = t1+ary->base->elsize;
+                //do_PUTGET_ITEM(1, ary, t1, (npy_intp*) t2);
+                break;
+            case DNPY_GET_ITEM:
+                ary = get_dndview(*((npy_intp*)msg_data));
+                t1 = msg_data+sizeof(npy_intp);
+                //do_PUTGET_ITEM(0, ary, NULL, (npy_intp*) t1);
+                break;
+            case DNPY_COPY_INTO:
+                d1 = *((npy_intp*)msg_data);
+                d2 = *(((npy_intp*)msg_data)+1);
+                //do_COPY_INTO(d1,d2);
+                break;
+            case DNPY_UFUNC:
+                d1 = *((npy_intp*)msg_data);
+                d2 = *(((npy_intp*)msg_data)+1);
+                d3 = *(((npy_intp*)msg_data)+2);
+                d4 = *(((npy_intp*)msg_data)+3);
+                d5 = *(((npy_intp*)msg_data)+4);
+                t1 = msg_data+sizeof(npy_intp)*5;
+                t2 = t1+d5;
+                t3 = t2+d1*sizeof(npy_intp);
+                //do_UFUNC((npy_intp *)t2,d1,d2,d3,d4,d5,t1,t3);
+                break;
+            case DNPY_UFUNC_REDUCE:
+                d1 = *((npy_intp*)msg_data);
+                d2 = *(((npy_intp*)msg_data)+1);
+                d3 = *(((npy_intp*)msg_data)+2);
+                d4 = *(((npy_intp*)msg_data)+3);
+                d5 = *(((npy_intp*)msg_data)+4);
+                t1 = msg_data+sizeof(npy_intp)*5;
+                //do_UFUNC_REDUCE(d1, d2, d3, d4, NULL, d5, t1);
+                break;
+            case DNPY_ZEROFILL:
+                //do_ZEROFILL(get_dndview(*((npy_intp*)msg_data)));
+                break;
+            case DNPY_DATAFILL:
+                d1 = ((npy_intp*)msg_data)[0]; // view uid
+                l1 = (long) ((npy_intp*)msg_data)[1]; // filepos
+                t1 = msg_data+sizeof(npy_intp)+sizeof(long); // get filename
+                //do_FILEIO(get_dndview(d1), t1, l1, DNPY_DATAFILL);
+                break;
+            case DNPY_DATADUMP:
+                d1 = ((npy_intp*)msg_data)[0]; // view uid
+                l1 = (long) ((npy_intp*)msg_data)[1]; // filepos
+                t1 = msg_data+sizeof(npy_intp)+sizeof(long); // get filename
+                //do_FILEIO(get_dndview(d1), t1, l1, DNPY_DATADUMP);
+                break;
+            case DNPY_DIAGONAL:
+                ary  = get_dndview(((npy_intp*)msg_data)[0]);
+                ary2 = get_dndview(((npy_intp*)msg_data)[1]);
+                d1 = ((npy_intp*)msg_data)[2];
+                d2 = ((npy_intp*)msg_data)[3];
+                d3 = ((npy_intp*)msg_data)[4];
+                //do_DIAGONAL(ary, ary2, d1, d2, d3);
+                break;
+            case DNPY_MATMUL:
+                ary  = get_dndview(((npy_intp*)msg_data)[0]);
+                ary2 = get_dndview(((npy_intp*)msg_data)[1]);
+                ary3 = get_dndview(((npy_intp*)msg_data)[2]);
+                //do_MATMUL(ary, ary2, ary3);
+                break;
+            case DNPY_TIME_RESET:
+                //do_TIME_RESET();
+                break;
+            case DNPY_TIME_GETDICT:
+                //do_TIME_GETDICT();
+                break;
+            default:
+                fprintf(stderr, "Unknown msg: %ld\n", (long)msg[0]);
+                MPI_Abort(MPI_COMM_WORLD, -1);
+        }
+    }
+    return Py_False;
+#endif
+} /* PyDistArray_MasterSlaveSplit */
 
 
 static PyMethodDef DistNumPyMethods[] = {
-    {"system",  PySpam_System, METH_VARARGS,
-     "Execute a shell command."},
+    {"MasterSlaveSplit", PyDistArray_MasterSlaveSplit, METH_VARARGS,
+     "From this point on the master will continue with the pyton code"\
+     " and the slaves will stay in C"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

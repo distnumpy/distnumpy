@@ -169,3 +169,9 @@ else:
     __all__.extend(_mat.__all__)
     __all__.extend(lib.__all__)
     __all__.extend(['linalg', 'fft', 'random', 'ctypeslib', 'ma'])
+
+    #DISTNUMPY
+    import distnumpy
+    if not distnumpy.MasterSlaveSplit():
+        import sys
+        sys.exit(0)

@@ -66,16 +66,6 @@ enum opt {DNPY_MSG_END, DNPY_CREATE_ARRAY, DNPY_DESTROY_ARRAY,
 //dndnode prototype.
 typedef struct dndnode_struct dndnode;
 typedef struct dndarray_struct dndarray;
-typedef struct dndmem_struct dndmem;
-
-//Type describing a memory allocation.
-struct dndmem_struct
-{
-    //Size of allocated memory.
-    npy_intp size;
-    //Pointer to the next free memory allocation.
-    dndmem *next;
-};
 
 //Type describing a distributed array.
 struct dndarray_struct
@@ -353,10 +343,6 @@ static void *workbuf_nextfree;
 static void *workbuf_max;
 //Unique identification counter
 static npy_intp uid_count=0;
-//Array-views belonging to local MPI process
-static dndview dndviews[DNPY_MAX_NARRAYS];
-static npy_intp ndndarrays=0;//Current number of dndviews allocated.
-static npy_intp dndviews_uid[DNPY_MAX_NARRAYS];
 //Cartesian dimension information - one for every dimension-order.
 static int *cart_dim_strides[NPY_MAXDIMS];
 static int *cart_dim_sizes[NPY_MAXDIMS];
@@ -367,8 +353,6 @@ static dndop *ready_queue[DNPY_RDY_QUEUE_MAXSIZE];
 static npy_intp ready_queue_size=0;
 //Unique MPI tag.
 static int mpi_tag=0;
-//Memory pool.
-static dndmem *mem_pool = NULL;
 //Pointer to the PyUFunc_Reduce function in umath_ufunc_object.inc
 typedef PyObject* (reduce_func_type)(PyUFuncObject *self,
                                      PyArrayObject *arr,
@@ -376,9 +360,7 @@ typedef PyObject* (reduce_func_type)(PyUFuncObject *self,
                                      int axis, int otype,
                                      void *threadlock);
 static reduce_func_type *reduce_func = NULL;
-//Prototype for the DAGs.
-static void dag_svb_flush(int free_workbuf);
-static void dag_svb_add(dndnode *nodes, int nnodes, int force_laziness);
+
 //Variables for statistics.
 #ifdef DNPY_STATISTICS
     static int node_uid_count = 0;

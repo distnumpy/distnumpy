@@ -1,4 +1,3 @@
-"""
 /*
  * Copyright 2011 Mads R. B. Kristensen <madsbk@gmail.com>
  *
@@ -17,5 +16,20 @@
  * You should have received a copy of the GNU General Public License
  * along with DistNumPy. If not, see <http://www.gnu.org/licenses/>.
  */
-"""
-from setup import build
+
+/*
+ * There is a local array database on each MPI-process.
+ * The database consist of all array-views distributed.
+ */
+
+//Current number of dndviews allocated.
+static npy_intp ndndarrays=0;
+
+/*===================================================================
+ *
+ * Put, get & remove views from the local array database.
+ */
+dndview *get_dndview(npy_intp uid);
+dndview *get_dndview(npy_intp uid);
+dndview *put_dndview(dndview *view);
+void rm_dndview(npy_intp uid);
