@@ -21,6 +21,13 @@
  * We use a memory pool to reduce the memory allocation overhead.
  */
 
+#ifndef MEMORY_H
+#define MEMORY_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 //Type describing a memory allocation.
 typedef struct dndmem_struct dndmem;
 struct dndmem_struct
@@ -48,3 +55,10 @@ void delayed_array_allocation(dndarray *ary);
  * De-allocate the memory pool.
  */
 void mem_pool_finalize(void);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* !defined(MEMORY_H) */

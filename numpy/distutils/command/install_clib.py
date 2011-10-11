@@ -19,6 +19,11 @@ class install_clib(Command):
         build_clib_cmd = get_cmd("build_clib")
         build_dir = build_clib_cmd.build_clib
 
+        #DISTNUMPY
+        #No need to 'install_clib' DistNumPy
+        if build_dir is None:
+            return
+
         # We need the compiler to get the library name -> filename association
         if not build_clib_cmd.compiler:
             compiler = new_compiler(compiler=None)

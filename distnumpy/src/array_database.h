@@ -22,6 +22,14 @@
  * The database consist of all array-views distributed.
  */
 
+
+#ifndef ARRAY_DATABASE_H
+#define ARRAY_DATABASE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 //Current number of dndviews allocated.
 static npy_intp ndndarrays=0;
 
@@ -33,3 +41,10 @@ dndview *get_dndview(npy_intp uid);
 dndview *get_dndview(npy_intp uid);
 dndview *put_dndview(dndview *view);
 void rm_dndview(npy_intp uid);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* !defined(ARRAY_DATABASE_H) */

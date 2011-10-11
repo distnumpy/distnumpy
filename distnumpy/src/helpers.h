@@ -17,6 +17,11 @@
  * along with DistNumPy. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef HELPERS_H
+#define HELPERS_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*===================================================================
  *
@@ -44,3 +49,10 @@ void rank2cart(int ndims, int rank, int coords[NPY_MAXDIMS]);
 #ifndef DNPY_SPMD
 void msg2slaves(npy_intp *msg, int msgsize);
 #endif
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* !defined(HELPERS_H) */
