@@ -26,6 +26,21 @@ if sys.version_info[0] < 3:
 else:
     import builtins
 
+#DISTNUMPY
+#If CC is not set we use mpicc for compiling.
+if 'CC' not in os.environ or len(os.environ['CC']) > 0:
+    os.environ['CC'] = 'mpicc'
+#If LDSHARED is not set we use mpicc for linking.
+if 'LDSHARED' not in os.environ or len(os.environ['LDSHARED']) > 0:
+    os.environ['LDSHARED'] = 'mpicc'
+    flags = ''
+    try:
+        flags = os.environ['LDFLAGS']
+    except KeyError:
+        pass
+    os.environ['LDFLAGS'] = ' -shared ' + flags
+
+
 CLASSIFIERS = """\
 Development Status :: 5 - Production/Stable
 Intended Audience :: Science/Research
