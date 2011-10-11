@@ -31,14 +31,14 @@
 #include "helpers.h"
 #include "array_database.h"
 #include "memory.h"
+#include "arrayobject.h"
 #include "helpers.c"
 #include "array_database.c"
 #include "memory.c"
-
+#include "arrayobject.c"
 
 /*
  * ===================================================================
- * Public
  * Initialization of distnumpy.
  * Return -1 and set exception on error, 0 on success.
  */
@@ -113,7 +113,6 @@ PyDistArray_Init(void)
 
 /*
  * ===================================================================
- * Public
  * De-initialization of distnumpy.
  */
 static void
@@ -161,9 +160,8 @@ PyDistArray_Exit(void)
 } /* PyDistArray_Exit */
 
 
-/*NUMPY_API
+/*
  * ===================================================================
- * Public
  * From this point on the master will continue with the pyton code
  * and the slaves will stay in C.
  * If returning False the Python must call sys.exit(0) immediately.
@@ -205,7 +203,7 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
                 break;
             case DNPY_CREATE_ARRAY:
                 t1 = msg_data + sizeof(dndarray);
-                //do_CREATE_ARRAY((dndarray*) msg_data, (dndview*) t1);
+                handle_NewBaseArray((dndarray*) msg_data, (dndview*) t1);
                 break;
             case DNPY_DESTROY_ARRAY:
                 //do_DESTROY_ARRAY(*((npy_intp*)msg_data));
@@ -315,14 +313,6 @@ static PyMethodDef DistNumPyMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-static npy_intp PyDistArray_NewBaseArray(PyArrayObject *pyary, npy_intp onerank)
-{
-
-    return 42;
-}
-
-
-
 PyMODINIT_FUNC
 initdistnumpy(void)
 {
@@ -337,7 +327,10 @@ initdistnumpy(void)
     /* Initialize the C API pointer array */
     DistNumPy_API[PyDistArray_Init_NUM] = (void *)PyDistArray_Init;
     DistNumPy_API[PyDistArray_Exit_NUM] = (void *)PyDistArray_Exit;
+    DistNumPy_API[PyDistArray_MasterSlaveSplit_NUM] = (void *)PyDistArray_MasterSlaveSplit;
     DistNumPy_API[PyDistArray_NewBaseArray_NUM] = (void *)PyDistArray_NewBaseArray;
+    DistNumPy_API[PyDistArray_GetItem_NUM] = (void *)PyDistArray_GetItem;
+    DistNumPy_API[PyDistArray_PutItem_NUM] = (void *)PyDistArray_PutItem;
 
 
     /* Create a CObject containing the API pointer array's address */

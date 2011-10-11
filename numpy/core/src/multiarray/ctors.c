@@ -613,6 +613,56 @@ setArrayFromSequence(PyArrayObject *a, PyObject *s, int dim, npy_intp offset)
     return res;
 }
 
+/* DISTNUMPY */
+static int
+setDistArrayFromSequence(PyArrayObject *a, PyObject *s, int dim,
+                         npy_intp coords[NPY_MAXDIMS])
+{
+    Py_ssize_t i, slen;
+    int res = 0;
+    /*
+     * This code is to ensure that the sequence access below will
+     * return a lower-dimensional sequence.
+     */
+    if (PyArray_Check(s) && !(PyArray_CheckExact(s))) {
+      /*
+       * FIXME:  This could probably copy the entire subarray at once here using
+       * a faster algorithm.  Right now, just make sure a base-class array is
+       * used so that the dimensionality reduction assumption is correct.
+       */
+        s = PyArray_EnsureArray(s);
+    }
+
+    if (dim > a->nd) {
+        PyErr_Format(PyExc_ValueError,
+                     "setDistArrayFromSequence: sequence/array dimensions mismatch.");
+        return -1;
+    }
+
+    slen = PySequence_Length(s);
+    if (slen != a->dimensions[dim]) {
+        PyErr_Format(PyExc_ValueError,
+                     "setDistArrayFromSequence: sequence/array shape mismatch.");
+        return -1;
+    }
+
+    for (i = 0; i < slen; i++) {
+        PyObject *o = PySequence_GetItem(s, i);
+        coords[dim] = i;
+        if ((a->nd - dim) > 1) {
+            res = setDistArrayFromSequence(a, o, dim+1, coords);
+        }
+        else {
+            res = PyDistArray_PutItem(a, coords, o);
+        }
+        Py_DECREF(o);
+        if (res < 0) {
+            return res;
+        }
+    }
+    return 0;
+}
+
 NPY_NO_EXPORT int
 PyArray_AssignFromSequence(PyArrayObject *self, PyObject *v)
 {
@@ -626,7 +676,14 @@ PyArray_AssignFromSequence(PyArrayObject *self, PyObject *v)
                         "assignment to 0-d array");
         return -1;
     }
-    return setArrayFromSequence(self, v, 0, 0);
+    /* DISTNUMPY */
+    if(PyDistArray_ISDIST(self))
+    {
+        npy_intp coords[NPY_MAXDIMS];
+        return setDistArrayFromSequence(self, v, 0, coords);
+    }
+    else
+        return setArrayFromSequence(self, v, 0, 0);
 }
 
 /*
@@ -1092,13 +1149,13 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
                 onedist = PyInt_AsLong(obj);
                 obj = NULL;
             }
+            printf("Creating Dist Array\n");
             self->dnduid = PyDistArray_NewBaseArray(self, onedist);
-            //Make sure that set-/getitem are used.
-            //self->descr->hasobject |= NPY_USE_GETITEM;
-            //self->descr->hasobject |= NPY_USE_SETITEM;
+            if(self->dnduid < 0)
+                goto fail;
+
             //NumPy should only allocate elsize.
             sd = 0;
-            printf("Creating Dist Array\n");
         }
 
         /*
@@ -1815,7 +1872,8 @@ PyArray_FromAny(PyObject *op, PyArray_Descr *newtype, int min_depth,
             ret = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, newtype,
                                                  ndim, dims,
                                                  NULL, NULL,
-                                                 flags&NPY_F_CONTIGUOUS, NULL);
+                                                 /* DISTNUMPY */
+                                                 flags & (NPY_F_CONTIGUOUS | DNPY_DIST), NULL);
             if (ret != NULL) {
                 if (ndim > 0) {
                     if (PyArray_AssignFromSequence(ret, op) < 0) {
@@ -1825,7 +1883,7 @@ PyArray_FromAny(PyObject *op, PyArray_Descr *newtype, int min_depth,
                 }
                 else {
                     if (PyArray_DESCR(ret)->f->setitem(op,
-                                                PyArray_DATA(ret), ret) < 0) {
+                        PyArray_DATA(ret), ret) < 0) {
                         Py_DECREF(ret);
                         ret = NULL;
                     }

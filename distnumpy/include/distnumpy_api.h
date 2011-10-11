@@ -39,10 +39,18 @@ extern "C" {
 
 #define PyDistArray_NewBaseArray_NUM 3
 #define PyDistArray_NewBaseArray_RETURN npy_intp
-#define PyDistArray_NewBaseArray_PROTO (PyArrayObject *pyary, npy_intp onerank)
+#define PyDistArray_NewBaseArray_PROTO (PyArrayObject *ary, npy_intp one_node_dist_rank)
+
+#define PyDistArray_GetItem_NUM 4
+#define PyDistArray_GetItem_RETURN int
+#define PyDistArray_GetItem_PROTO (PyArrayObject *ary, char *retdata, npy_intp coord[NPY_MAXDIMS])
+
+#define PyDistArray_PutItem_NUM 5
+#define PyDistArray_PutItem_RETURN int
+#define PyDistArray_PutItem_PROTO (PyArrayObject *ary, npy_intp coord[NPY_MAXDIMS], PyObject *item)
 
 /* Total number of C API pointers */
-#define DistNumPy_API_pointers 4
+#define DistNumPy_API_pointers 6
 
 
 #ifdef DISTNUMPY_MODULE
@@ -52,6 +60,9 @@ static PyDistArray_Init_RETURN PyDistArray_Init PyDistArray_Init_PROTO;
 static PyDistArray_Exit_RETURN PyDistArray_Exit PyDistArray_Exit_PROTO;
 static PyDistArray_MasterSlaveSplit_RETURN PyDistArray_MasterSlaveSplit PyDistArray_MasterSlaveSplit_PROTO;
 static PyDistArray_NewBaseArray_RETURN PyDistArray_NewBaseArray PyDistArray_NewBaseArray_PROTO;
+static PyDistArray_GetItem_RETURN PyDistArray_GetItem PyDistArray_GetItem_PROTO;
+static PyDistArray_PutItem_RETURN PyDistArray_PutItem PyDistArray_PutItem_PROTO;
+
 
 #else
 /* This section is used in modules that use distnumpy's API */
@@ -70,6 +81,11 @@ static void **DistNumPy_API;
 #define PyDistArray_NewBaseArray \
  (*(PyDistArray_NewBaseArray_RETURN (*)PyDistArray_NewBaseArray_PROTO) DistNumPy_API[PyDistArray_NewBaseArray_NUM])
 
+#define PyDistArray_GetItem \
+ (*(PyDistArray_GetItem_RETURN (*)PyDistArray_GetItem_PROTO) DistNumPy_API[PyDistArray_GetItem_NUM])
+
+#define PyDistArray_PutItem \
+ (*(PyDistArray_PutItem_RETURN (*)PyDistArray_PutItem_PROTO) DistNumPy_API[PyDistArray_PutItem_NUM])
 
 /* Return -1 and set exception on error, 0 on success. */
 static int

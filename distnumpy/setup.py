@@ -38,6 +38,10 @@ def build(build_path):
                                           join('distnumpy','src','helpers.h'),
                                           join('distnumpy','src','array_database.c'),
                                           join('distnumpy','src','array_database.h'),
+                                          join('distnumpy','src','arrayobject.c'),
+                                          join('distnumpy','src','arrayobject.h'),
+                                          join('distnumpy','src','dependency_system.c'),
+                                          join('distnumpy','src','dependency_system.h'),
                                           join('distnumpy','src','memory.c'),
                                           join('distnumpy','src','memory.h')]
                                  )],
