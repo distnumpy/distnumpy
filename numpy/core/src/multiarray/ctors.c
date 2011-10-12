@@ -1149,7 +1149,6 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
                 onedist = PyInt_AsLong(obj);
                 obj = NULL;
             }
-            printf("Creating Dist Array\n");
             self->dnduid = PyDistArray_NewBaseArray(self, onedist);
             if(self->dnduid < 0)
                 goto fail;

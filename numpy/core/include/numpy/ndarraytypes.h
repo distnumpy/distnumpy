@@ -33,7 +33,7 @@
  * the places where static allocation is used would need to be changed
  * to dynamic (including inside of several structures)
  */
-/* DISTNUMPY - reduced default value (32) */
+/* DISTNUMPY - reduced default value to 8 (from 32) */
 #define NPY_MAXDIMS 8
 #define NPY_MAXARGS 8
 

@@ -32,10 +32,14 @@
 #include "array_database.h"
 #include "memory.h"
 #include "arrayobject.h"
+#include "dependency_system.h"
+#include "process_grid.h"
 #include "helpers.c"
 #include "array_database.c"
 #include "memory.c"
 #include "arrayobject.c"
+#include "dependency_system.c"
+#include "process_grid.c"
 
 /*
  * ===================================================================
@@ -134,7 +138,7 @@ PyDistArray_Exit(void)
     }
 #endif
     //Make sure that the sub-view-block DAG is flushed.
-    //dag_svb_flush(1);
+    dep_flush(1);
 
     //Free buffers.
     free(workbuf);
@@ -196,7 +200,7 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
         switch(msg[0])
         {
             case DNPY_INIT_PGRID:
-                //do_INIT_PGRID((int*)msg_data);
+                handle_ProcGridSet((int*)msg_data);
                 break;
             case DNPY_INIT_BLOCKSIZE:
                 //blocksize = *((npy_intp*)msg_data);
@@ -206,7 +210,7 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
                 handle_NewBaseArray((dndarray*) msg_data, (dndview*) t1);
                 break;
             case DNPY_DESTROY_ARRAY:
-                //do_DESTROY_ARRAY(*((npy_intp*)msg_data));
+                handle_DelViewArray(*((npy_intp*)msg_data));
                 break;
             case DNPY_CREATE_VIEW:
                 d1 = *((npy_intp*)msg_data);
@@ -214,16 +218,10 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
                 //do_CREATE_VIEW(d1, (dndview*) t1);
                 break;
             case DNPY_SHUTDOWN:
-                #ifdef DISTNUMPY_DEBUG
-                    printf("SHUTDOWN\n");
-                #endif
                 shutdown = 1;
                 break;
             case DNPY_EVALFLUSH:
-                #ifdef DISTNUMPY_DEBUG
-                    printf("EVALFLUSH\n");
-                #endif
-                //dag_svb_flush(1);
+                dep_flush(1);
                 break;
             case DNPY_PUT_ITEM:
                 ary = get_dndview(*((npy_intp*)msg_data));
@@ -329,9 +327,10 @@ initdistnumpy(void)
     DistNumPy_API[PyDistArray_Exit_NUM] = (void *)PyDistArray_Exit;
     DistNumPy_API[PyDistArray_MasterSlaveSplit_NUM] = (void *)PyDistArray_MasterSlaveSplit;
     DistNumPy_API[PyDistArray_NewBaseArray_NUM] = (void *)PyDistArray_NewBaseArray;
+    DistNumPy_API[PyDistArray_DelViewArray_NUM] = (void *)PyDistArray_DelViewArray;
     DistNumPy_API[PyDistArray_GetItem_NUM] = (void *)PyDistArray_GetItem;
     DistNumPy_API[PyDistArray_PutItem_NUM] = (void *)PyDistArray_PutItem;
-
+    DistNumPy_API[PyDistArray_ProcGridSet_NUM] = (void *)PyDistArray_ProcGridSet;
 
     /* Create a CObject containing the API pointer array's address */
     c_api_object = PyCObject_FromVoidPtr((void *)DistNumPy_API, NULL);

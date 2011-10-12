@@ -477,7 +477,7 @@ void dep_flush(int free_workbuf)
         {
             dndop *op = ncomm[--ncommsize];//Using a FILO order.
             dndop **op2apply = workbuf_nextfree;
-            npy_intp nops = dag_svg_remove(op, op2apply);
+            npy_intp nops = dep_remove(op, op2apply);
             npy_intp cur_op;
             npy_intp mreserved = nops * DNPY_WORK_BUFFER_MEM_ALIGNMENT;
             WORKBUF_INC(mreserved);//Reserve memory.
@@ -488,7 +488,7 @@ void dep_flush(int free_workbuf)
                 switch(op->op)
                 {
                     case DNPY_UFUNC:
-                        apply_ufunc((dndop_ufunc*)op);
+                        //apply_ufunc((dndop_ufunc*)op);
                         Py_DECREF(((dndop_ufunc*)op)->PyOp);
                         break;
                     case DNPY_DESTROY_ARRAY:
@@ -540,7 +540,7 @@ void dep_flush(int free_workbuf)
             for(f=0; f<fcommsize; f++)
             {
                 dndop *op = comm[fcomm[f]];
-                dag_svg_remove(op, NULL);
+                dep_remove(op, NULL);
             }
             for(f=0; f<fcommsize; f++)
             {

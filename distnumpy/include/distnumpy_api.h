@@ -41,16 +41,25 @@ extern "C" {
 #define PyDistArray_NewBaseArray_RETURN npy_intp
 #define PyDistArray_NewBaseArray_PROTO (PyArrayObject *ary, npy_intp one_node_dist_rank)
 
-#define PyDistArray_GetItem_NUM 4
+#define PyDistArray_DelViewArray_NUM 4
+#define PyDistArray_DelViewArray_RETURN int
+#define PyDistArray_DelViewArray_PROTO (PyArrayObject *array)
+
+#define PyDistArray_GetItem_NUM 5
 #define PyDistArray_GetItem_RETURN int
 #define PyDistArray_GetItem_PROTO (PyArrayObject *ary, char *retdata, npy_intp coord[NPY_MAXDIMS])
 
-#define PyDistArray_PutItem_NUM 5
+#define PyDistArray_PutItem_NUM 6
 #define PyDistArray_PutItem_RETURN int
 #define PyDistArray_PutItem_PROTO (PyArrayObject *ary, npy_intp coord[NPY_MAXDIMS], PyObject *item)
 
+#define PyDistArray_ProcGridSet_NUM 7
+#define PyDistArray_ProcGridSet_RETURN PyObject *
+#define PyDistArray_ProcGridSet_PROTO (PyArrayObject *self, PyObject *args)
+
+
 /* Total number of C API pointers */
-#define DistNumPy_API_pointers 6
+#define DistNumPy_API_pointers 8
 
 
 #ifdef DISTNUMPY_MODULE
@@ -60,8 +69,10 @@ static PyDistArray_Init_RETURN PyDistArray_Init PyDistArray_Init_PROTO;
 static PyDistArray_Exit_RETURN PyDistArray_Exit PyDistArray_Exit_PROTO;
 static PyDistArray_MasterSlaveSplit_RETURN PyDistArray_MasterSlaveSplit PyDistArray_MasterSlaveSplit_PROTO;
 static PyDistArray_NewBaseArray_RETURN PyDistArray_NewBaseArray PyDistArray_NewBaseArray_PROTO;
+static PyDistArray_DelViewArray_RETURN PyDistArray_DelViewArray PyDistArray_DelViewArray_PROTO;
 static PyDistArray_GetItem_RETURN PyDistArray_GetItem PyDistArray_GetItem_PROTO;
 static PyDistArray_PutItem_RETURN PyDistArray_PutItem PyDistArray_PutItem_PROTO;
+static PyDistArray_ProcGridSet_RETURN PyDistArray_ProcGridSet PyDistArray_ProcGridSet_PROTO;
 
 
 #else
@@ -81,11 +92,17 @@ static void **DistNumPy_API;
 #define PyDistArray_NewBaseArray \
  (*(PyDistArray_NewBaseArray_RETURN (*)PyDistArray_NewBaseArray_PROTO) DistNumPy_API[PyDistArray_NewBaseArray_NUM])
 
+#define PyDistArray_DelViewArray \
+ (*(PyDistArray_DelViewArray_RETURN (*)PyDistArray_DelViewArray_PROTO) DistNumPy_API[PyDistArray_DelViewArray_NUM])
+
 #define PyDistArray_GetItem \
  (*(PyDistArray_GetItem_RETURN (*)PyDistArray_GetItem_PROTO) DistNumPy_API[PyDistArray_GetItem_NUM])
 
 #define PyDistArray_PutItem \
  (*(PyDistArray_PutItem_RETURN (*)PyDistArray_PutItem_PROTO) DistNumPy_API[PyDistArray_PutItem_NUM])
+
+#define PyDistArray_ProcGridSet \
+ (*(PyDistArray_ProcGridSet_RETURN (*)PyDistArray_ProcGridSet_PROTO) DistNumPy_API[PyDistArray_ProcGridSet_NUM])
 
 /* Return -1 and set exception on error, 0 on success. */
 static int

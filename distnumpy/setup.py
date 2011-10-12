@@ -42,6 +42,8 @@ def build(build_path):
                                           join('distnumpy','src','arrayobject.h'),
                                           join('distnumpy','src','dependency_system.c'),
                                           join('distnumpy','src','dependency_system.h'),
+                                          join('distnumpy','src','process_grid.c'),
+                                          join('distnumpy','src','process_grid.h'),
                                           join('distnumpy','src','memory.c'),
                                           join('distnumpy','src','memory.h')]
                                  )],

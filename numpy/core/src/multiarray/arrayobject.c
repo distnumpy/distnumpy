@@ -50,6 +50,9 @@ maintainer email:  oliphant.travis@ieee.org
 #include "sequence.h"
 #include "buffer.h"
 
+/* DISTNUMPY */
+#include "distnumpy.h"
+
 /*NUMPY_API
   Compute the size of an array (in number of items)
 */
@@ -220,6 +223,10 @@ PyArray_TypeNumFromName(char *str)
 
 static void
 array_dealloc(PyArrayObject *self) {
+
+    /* DISTNUMPY */
+    if(PyDistArray_ISDIST(self))
+        PyDistArray_DelViewArray(self);
 
     _array_dealloc_buffer_info(self);
 

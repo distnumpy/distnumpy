@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 
+#include <mpi.h>
+
 /*===================================================================
  *
  * Computes the number of elements in a dimension of a distributed
@@ -49,6 +51,20 @@ void rank2cart(int ndims, int rank, int coords[NPY_MAXDIMS]);
 #ifndef DNPY_SPMD
 void msg2slaves(npy_intp *msg, int msgsize);
 #endif
+
+/*===================================================================
+ *
+ * Returns a string describing the operation type.
+ */
+char *optype2str(int optype);
+
+
+/*===================================================================
+ *  Returns a MPI data type that match the specified sub-view-block.
+ */
+static MPI_Datatype
+calc_svb_MPIdatatype(const dndview *view, dndsvb *svb);
+
 
 
 #ifdef __cplusplus

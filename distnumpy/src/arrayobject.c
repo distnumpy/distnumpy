@@ -31,8 +31,8 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
     int i;
 
     //Make sure that the init message has been handled.
-//    if(initmsg_not_handled)
-//        dnumpy_init_data_layout(NULL,NULL);
+    if(initmsg_not_handled)
+        PyDistArray_ProcGridSet(NULL,NULL);
 
     //Create dndarray.
     dndarray *newarray = malloc(sizeof(dndarray));
@@ -234,7 +234,7 @@ int handle_DelViewArray(npy_intp uid)
     WORKBUF_INC(sizeof(dndnode));
     node->op = op;
     node->op_ary_idx = 0;
-    //dag_svb_add(node, 1, 0);
+    dep_add(node, 1, 0);
 
     return 0;
 } /* handle_DelViewArray */

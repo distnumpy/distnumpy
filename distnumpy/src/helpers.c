@@ -106,3 +106,107 @@ void msg2slaves(npy_intp *msg, int msgsize)
 
 } /* msg2slaves */
 #endif
+
+
+/*===================================================================
+ *
+ * Returns a string describing the operation type.
+ */
+char *optype2str(int optype)
+{
+    switch(optype)
+    {
+        case DNPY_CREATE_ARRAY:
+            return "DNPY_CREATE_ARRAY";
+        case DNPY_DESTROY_ARRAY:
+            return "del";
+        case DNPY_CREATE_VIEW:
+            return "DNPY_CREATE_VIEW";
+        case DNPY_PUT_ITEM:
+            return "DNPY_PUT_ITEM";
+        case DNPY_GET_ITEM:
+            return "DNPY_GET_ITEM";
+        case DNPY_UFUNC:
+            return "ufunc";
+        case DNPY_RECV:
+            return "recv";
+        case DNPY_SEND:
+            return "send";
+        case DNPY_BUF_RECV:
+            return "Brecv";
+        case DNPY_BUF_SEND:
+            return "Bsend";
+        case DNPY_APPLY:
+            return "apply";
+        case DNPY_UFUNC_REDUCE:
+            return "DNPY_UFUNC_REDUCE";
+        case DNPY_ZEROFILL:
+            return "DNPY_ZEROFILL";
+        case DNPY_DATAFILL:
+            return "DNPY_DATAFILL";
+        case DNPY_DIAGONAL:
+            return "DNPY_DIAGONAL";
+        case DNPY_MATMUL:
+            return "DNPY_MATMUL";
+        case DNPY_REDUCE_SEND:
+            return "reduce_send";
+        case DNPY_REDUCE_RECV:
+            return "DNPY_REDUCE_RECV";
+        default:
+            return "\"Unknown data type\"";
+    }
+} /* optype2str */
+
+
+/*===================================================================
+ *  Returns a MPI data type that match the specified sub-view-block.
+ */
+static MPI_Datatype
+calc_svb_MPIdatatype(const dndview *view, dndsvb *svb)
+{
+    /*
+    npy_intp i,j,stride;
+    MPI_Datatype comm_viewOLD, comm_viewNEW;
+    npy_intp start[NPY_MAXDIMS];
+    npy_intp step[NPY_MAXDIMS];
+    npy_intp nsteps[NPY_MAXDIMS];
+
+    //Convert vcoord to coord, which have length view->base->ndims.
+    j=0;
+    for(i=0; i < view->nslice; i++)
+    {
+        if(view->slice[i].nsteps == PseudoIndex)
+        {
+            continue;
+        }
+        if(view->slice[i].nsteps == SingleIndex)
+        {
+            nsteps[j] = 1;
+            step[j] = 1;
+        }
+        else
+        {
+            nsteps[j] = view->slice[i].nsteps;
+            step[j] = view->slice[i].step;
+        }
+        start[j++] = view->slice[i].start;
+    }
+
+    //Compute the MPI datatype for communication.
+    MPI_Type_dup(view->base->mpi_dtype, &comm_viewOLD);
+    for(i=view->base->ndims-1; i >= 0; i--)//Row-major.
+    {
+        //Compute the MPI datatype for the view.
+        stride = svb->stride[i] * step[i] * view->base->elsize;
+        MPI_Type_create_hvector(svb->nsteps[i], 1, stride,
+                                comm_viewOLD, &comm_viewNEW);
+
+        //Cleanup and iterate comm types.
+        MPI_Type_free(&comm_viewOLD);
+        comm_viewOLD = comm_viewNEW;
+    }
+    MPI_Type_commit(&comm_viewNEW);
+    return comm_viewNEW;
+    */
+    return 0;
+}/* calc_svb_MPIdatatype */
