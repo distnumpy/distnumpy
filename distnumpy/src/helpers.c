@@ -164,7 +164,7 @@ char *optype2str(int optype)
 static MPI_Datatype
 calc_svb_MPIdatatype(const dndview *view, dndsvb *svb)
 {
-    /*
+
     npy_intp i,j,stride;
     MPI_Datatype comm_viewOLD, comm_viewNEW;
     npy_intp start[NPY_MAXDIMS];
@@ -207,6 +207,239 @@ calc_svb_MPIdatatype(const dndview *view, dndsvb *svb)
     }
     MPI_Type_commit(&comm_viewNEW);
     return comm_viewNEW;
-    */
-    return 0;
 }/* calc_svb_MPIdatatype */
+
+
+/*===================================================================
+ *
+ * Calculate the view block at the specified block-coordinate.
+ * NB: vcoord is the visible coordinates and must therefore have
+ * length view->ndims.
+ */
+void calc_vblock(const dndview *view, const npy_intp vcoord[NPY_MAXDIMS],
+                 dndvb *vblock)
+{
+    npy_intp i, j, B, item_idx, s, offset, goffset, voffset, boffset;
+    npy_intp notfinished, stride, vitems, vvitems, vblocksize;
+    npy_intp comm_offset, nelem;
+    npy_intp coord[NPY_MAXDIMS];
+    npy_intp scoord[NPY_MAXDIMS];
+    npy_intp ncoord[NPY_MAXDIMS];
+    int pcoord[NPY_MAXDIMS];
+    int *cdims = cart_dim_sizes[view->base->ndims-1];
+    npy_intp start[NPY_MAXDIMS];
+    npy_intp step[NPY_MAXDIMS];
+    npy_intp nsteps[NPY_MAXDIMS];
+    dndsvb *svb;
+
+    //Convert vcoord to coord, which have length view->base->ndims.
+    j=0;s=0;
+    for(i=0; i < view->nslice; i++)
+    {
+        if(view->slice[i].nsteps == PseudoIndex)
+        {
+            assert(vcoord[s] == 0);
+            s++;
+            continue;
+        }
+        if(view->slice[i].nsteps == SingleIndex)
+        {
+            nsteps[j] = 1;
+            step[j] = 1;
+            coord[j] = 0;
+        }
+        else
+        {
+            coord[j] = vcoord[s];
+            nsteps[j] = view->slice[i].nsteps;
+            step[j] = view->slice[i].step;
+            s++;
+        }
+        assert(nsteps[j] > 0);
+        start[j++] = view->slice[i].start;
+    }
+    assert(j == view->base->ndims);
+
+    vblock->sub = workbuf_nextfree;
+    svb = vblock->sub;
+
+    //Init number of sub-view-block in each dimension.
+    memset(vblock->svbdims, 0, view->base->ndims * sizeof(npy_intp));
+
+    //Sub-vblocks coordinate.
+    memset(scoord, 0, view->base->ndims * sizeof(npy_intp));
+    //Compute all sub-vblocks associated with the n'th vblock.
+    notfinished=1; s=0;
+    while(notfinished)
+    {
+        dndnode **rootnode = view->base->rootnodes;
+        stride = 1;
+        for(i=view->base->ndims-1; i >= 0; i--)//Row-major.
+        {
+            //Non-block coordinates.
+            ncoord[i] = coord[i] * blocksize;
+            //View offset relative to array-view (non-block offset).
+            voffset = ncoord[i] + scoord[i];
+            //Global offset relative to array-base.
+            goffset = voffset * step[i] + start[i];
+            //Global block offset relative to array-base.
+            B = goffset / blocksize;
+            //Compute this sub-view-block's root node.
+            rootnode += B * stride;
+            stride *= view->base->blockdims[i];
+            //Process rank of the owner in the i'th dimension.
+            pcoord[i] = B % cdims[i];
+            //Local block offset relative to array-base.
+            boffset = B / cdims[i];
+            //Item index local to the block.
+            item_idx = goffset % blocksize;
+            //Local offset relative to array-base.
+            offset = boffset * blocksize + item_idx;
+            //Save offset.
+            svb[s].start[i] = offset;
+            //Viewable items left in the block.
+            vitems = MAX((blocksize - item_idx) / step[i], 1);
+            //Size of current view block.
+            vblocksize = MIN(blocksize, nsteps[i] - ncoord[i]);
+            //Viewable items left in the view-block.
+            vvitems = vblocksize - (voffset % blocksize);
+            //Compute nsteps.
+            svb[s].nsteps[i] = MIN(blocksize, MIN(vvitems, vitems));
+            //Debug check.
+            assert(svb[s].nsteps[i] > 0);
+        }
+        //Find rank.
+        if(view->base->onerank < 0)
+            svb[s].rank = cart2rank(view->base->ndims,pcoord);
+        else
+            svb[s].rank = view->base->onerank;
+
+        assert(svb[s].rank >= 0);
+        //Data has not been fetched.
+        svb[s].data = NULL;
+        //Communication has not been handled.
+        svb[s].comm_received_by = -1;
+        //Save rootnode.
+        svb[s].rootnode = rootnode;
+
+        //Compute the strides (we need the rank to do this).
+        stride = 1;
+        if(view->base->onerank < 0)
+            for(i=view->base->ndims-1; i >= 0; i--)
+            {
+                svb[s].stride[i] = stride;
+                stride *= dnumroc(view->base->dims[i], blocksize,
+                                  pcoord[i], cdims[i], 0);
+                assert(svb[s].stride[i] > 0);
+            }
+        else//All on one rank.
+            for(i=view->base->ndims-1; i >= 0; i--)
+            {
+                svb[s].stride[i] = stride;
+                stride = view->base->dims[i];
+            }
+
+        //Compute the MPI datatype for communication.
+        comm_offset = 0;
+        nelem = 1;
+        for(i=view->base->ndims-1; i >= 0; i--)//Row-major.
+        {
+            //Compute offsets.
+            comm_offset += svb[s].start[i] * svb[s].stride[i];
+            //Computing total number of elements.
+            nelem *= svb[s].nsteps[i];
+        }
+        //Save offsets.
+        svb[s].comm_offset = comm_offset * view->base->elsize;
+
+        //Save total number of elements.
+        svb[s].nelem = nelem;
+
+        //Save data pointer if local data.
+        if(svb[s].rank == myrank)
+        {
+            delayed_array_allocation(view->base);
+            vblock->sub[s].data = view->base->data + svb[s].comm_offset;
+        }
+
+        //Iterate Sub-vblocks coordinate (Row-major).
+        for(j=view->base->ndims-1; j >= 0; j--)
+        {
+            //Count svbdims.
+            vblock->svbdims[j]++;
+
+            scoord[j] += svb[s].nsteps[j];
+            if(scoord[j] >= MIN(blocksize, nsteps[j] - ncoord[j]))
+            {
+                //We a finished, if wrapping around.
+                if(j == 0)
+                {
+                    notfinished = 0;
+                    break;
+                }
+                scoord[j] = 0;
+            }
+            else
+                break;
+        }
+        //Reset svbdims because we need the last iteration.
+        if(notfinished)
+            for(i=view->base->ndims-1; i > j; i--)
+                vblock->svbdims[i] = 0;
+
+        s++;
+    }
+    //Save number of sub-vblocks.
+    vblock->nsub = s;
+    assert(vblock->nsub > 0);
+    //And the next free work buffer slot.
+    WORKBUF_INC(s * sizeof(dndsvb));
+} /* calc_vblock */
+
+/*===================================================================
+ *
+ * Convert visible vblock dimension index to base vblock
+ * dimension index.
+ */
+npy_intp idx_v2b(const dndview *view, npy_intp vindex)
+{
+    assert(vindex < view->ndims);
+    npy_intp i, bindex=0;
+    for(i=0; i < view->nslice; i++)
+    {
+        if(view->slice[i].nsteps == SingleIndex)
+        {
+            if(view->base->ndims > 1)
+                bindex++;
+            continue;
+        }
+        if(vindex == 0)
+            break;
+        if(view->slice[i].nsteps != PseudoIndex)
+            bindex++;
+        vindex--;
+    }
+    //We need the MIN since bindex is too high when PseudoIndex is
+    //used at the end of the view.
+    return MIN(bindex, view->base->ndims-1);
+} /* idx_v2b */
+
+/*===================================================================
+ *
+ * Convert visible vblock dimension index to slice dimension index.
+ */
+npy_intp idx_v2s(const dndview *view, npy_intp vindex)
+{
+    npy_intp i;
+    assert(vindex < view->ndims);
+    for(i=0; i < view->nslice; i++)
+    {
+        if(view->slice[i].nsteps == SingleIndex)
+            continue;
+        if(vindex == 0)
+            break;
+        vindex--;
+    }
+    assert(i < view->nslice);
+    return i;
+} /* idx_v2s */

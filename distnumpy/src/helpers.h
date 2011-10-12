@@ -42,7 +42,6 @@ npy_intp dnumroc(npy_intp nelem_in_dim, npy_intp block_size,
 int cart2rank(int ndims, const int coords[NPY_MAXDIMS]);
 void rank2cart(int ndims, int rank, int coords[NPY_MAXDIMS]);
 
-
 /*===================================================================
  *
  * Sends a message to all slaves.
@@ -58,12 +57,33 @@ void msg2slaves(npy_intp *msg, int msgsize);
  */
 char *optype2str(int optype);
 
-
 /*===================================================================
  *  Returns a MPI data type that match the specified sub-view-block.
  */
 static MPI_Datatype
 calc_svb_MPIdatatype(const dndview *view, dndsvb *svb);
+
+/*===================================================================
+ *
+ * Calculate the view block at the specified block-coordinate.
+ * NB: vcoord is the visible coordinates and must therefore have
+ * length view->ndims.
+ */
+void calc_vblock(const dndview *view, const npy_intp vcoord[NPY_MAXDIMS],
+                 dndvb *vblock);
+
+/*===================================================================
+ *
+ * Convert visible vblock dimension index to base vblock
+ * dimension index.
+ */
+npy_intp idx_v2b(const dndview *view, npy_intp vindex);
+
+/*===================================================================
+ *
+ * Convert visible vblock dimension index to slice dimension index.
+ */
+npy_intp idx_v2s(const dndview *view, npy_intp vindex);
 
 
 
