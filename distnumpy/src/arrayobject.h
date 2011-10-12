@@ -69,12 +69,12 @@ struct dndarray_struct
     //MPI-process rank.
     npy_intp onerank;
 };
-/*
+
 //dndslice constants.
 #define PseudoIndex -1//Adds a extra 1-dim - 'A[1,newaxis]'
-#define RubberIndex -2//A[1,2,...] (Not used in distnumpy.inc)
+#define RubberIndex -2//A[1,2,...] (Not used in DistNumPy)
 #define SingleIndex -3//Dim not visible - 'A[1]'
-*/
+
 //Type describing a slice of a dimension.
 typedef struct
 {
@@ -175,6 +175,14 @@ static int
 PyDistArray_GetItem(PyArrayObject *ary, char *retdata,
                     npy_intp coord[NPY_MAXDIMS]);
 
+/*===================================================================
+ *
+ * Handler for PyDistArray_PutItem and PyDistArray_GetItem.
+ * Direction: 0=Get, 1=Put.
+ * Return -1 and set exception on error, 0 on success.
+ */
+int handle_PutGetItem(int Direction, dndview *view, char* item,
+                      npy_intp coord[NPY_MAXDIMS]);
 
 
 #ifdef __cplusplus

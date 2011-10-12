@@ -280,7 +280,7 @@ PyDistArray_PutItem(PyArrayObject *ary, npy_intp coord[NPY_MAXDIMS],
                     ndims * sizeof(npy_intp));
 #endif
 
-    //do_PUTGET_ITEM(1, view, PyArray_DATA(citem2), coord);
+    handle_PutGetItem(1, view, PyArray_DATA(citem2), coord);
 
     //Clean up.
     Py_DECREF(citem2);
@@ -312,7 +312,154 @@ PyDistArray_GetItem(PyArrayObject *ary, char *retdata,
     msg2slaves(msg, 3*sizeof(npy_intp) + view->ndims*sizeof(npy_intp));
 #endif
 
-//    do_PUTGET_ITEM(0, view, retdata, coordinate);
+    handle_PutGetItem(0, view, retdata, coord);
 
     return 0;
 } /* PyDistArray_GetItem */
+
+/*===================================================================
+ *
+ * Handler for PyDistArray_PutItem and PyDistArray_GetItem.
+ * Direction: 0=Get, 1=Put.
+ * Return -1 and set exception on error, 0 on success.
+ */
+int handle_PutGetItem(int Direction, dndview *view, char* item,
+                      npy_intp coord[NPY_MAXDIMS])
+{
+    npy_intp i,j,b,offset;
+    npy_intp n, s;
+    npy_intp tcoord[NPY_MAXDIMS];
+    npy_intp rcoord[NPY_MAXDIMS];
+    npy_intp nsteps[NPY_MAXDIMS];
+    npy_intp step[NPY_MAXDIMS];
+    char *data;
+    dndvb vblock;
+
+    dep_flush(1);
+
+    //Convert to block coordinates.
+    for(i=0; i<view->ndims; i++)
+        tcoord[i] = coord[i] / blocksize;
+
+    //Get view block info.
+    calc_vblock(view, tcoord, &vblock);
+
+    //Convert PseudoIndex and SingleIndex.
+    j=0;n=0;
+    for(i=0; i < view->nslice; i++)
+    {
+        if(view->slice[i].nsteps == PseudoIndex)
+        {
+            assert(view->slice[i].start == 0);
+            n++;
+        }
+        else if(view->slice[i].nsteps == SingleIndex)
+        {
+            rcoord[j] = 0;//The offset is already incl. in the svb.
+            nsteps[j] = 1;
+            step[j] = 1;
+            j++;
+        }
+        else
+        {
+            rcoord[j] = coord[n];
+            nsteps[j] = view->slice[i].nsteps;
+            step[j] = view->slice[i].step;
+            j++; n++;
+        }
+    }
+
+    //Convert global coordinate to index coordinates
+    //relative to the view.
+    for(i=0; i<view->base->ndims; i++)
+        tcoord[i] = rcoord[i] % blocksize;
+
+    //Find sub view block and convert icoord to coordinate
+    //relative to the sub view block.
+    s=1;b=0;
+    for(i=view->base->ndims-1; i>=0; i--)//Row-major.
+    {
+        j = vblock.sub[b].nsteps[i];
+        while(tcoord[i] >= vblock.sub[b].nsteps[i])
+        {
+            tcoord[i] -= vblock.sub[b].nsteps[i];
+            j += vblock.sub[b].nsteps[i];
+            b += s;
+        }
+        while(j < MIN(blocksize, nsteps[i] - rcoord[i]))
+        {
+            j += vblock.sub[b].nsteps[i];
+        }
+        s *= vblock.svbdims[i];
+    }
+
+    //Compute offset.
+    offset = 0;
+    for(i=view->base->ndims-1; i>=0; i--)//Row-major.
+        offset += (vblock.sub[b].start[i] + tcoord[i] * step[i]) *
+                   vblock.sub[b].stride[i];
+    delayed_array_allocation(view->base);
+    data = view->base->data + offset*view->base->elsize;
+
+#ifndef DNPY_SPMD
+    if(vblock.sub[b].rank == 0)//Local copying.
+    {
+        if(myrank == 0)
+        {
+            if(Direction)
+                memcpy(data, item, view->base->elsize);
+            else
+                memcpy(item, data, view->base->elsize);
+        }
+    }
+    else if(myrank == 0)
+    {
+        if(Direction)
+            MPI_Ssend(item, 1, view->base->mpi_dtype, vblock.sub[b].rank,
+                     0, MPI_COMM_WORLD);
+        else
+            MPI_Recv(item, 1, view->base->mpi_dtype, vblock.sub[b].rank,
+                     0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    else if(myrank == vblock.sub[b].rank)
+    {
+        if(Direction)
+            MPI_Recv(data, 1, view->base->mpi_dtype, 0, 0,
+                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        else
+            MPI_Ssend(data, 1, view->base->mpi_dtype, 0, 0,
+                     MPI_COMM_WORLD);
+    }
+#else
+    if(Direction)
+    {
+        if(vblock.sub[b].rank == 0)//Local copying.
+        {
+            if(myrank == 0)
+                memcpy(data, item, view->base->elsize);
+        }
+        else if(myrank == 0)
+        {
+            MPI_Ssend(item, 1, view->base->mpi_dtype, vblock.sub[b].rank,
+                     0, MPI_COMM_WORLD);
+        }
+        else if(myrank == vblock.sub[b].rank)
+        {
+            MPI_Recv(data, 1, view->base->mpi_dtype, 0, 0,
+                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+    }
+    else
+    {
+        if(vblock.sub[b].rank == myrank)//Local copying.
+            memcpy(item, data, view->base->elsize);
+
+        MPI_Bcast(item, view->base->elsize, MPI_BYTE, vblock.sub[b].rank,
+                  MPI_COMM_WORLD);
+    }
+#endif
+
+    dep_flush(1);//Will cleanup the used sub-view-blocks.
+
+    return 0;
+} /* handle_PutGetItem */

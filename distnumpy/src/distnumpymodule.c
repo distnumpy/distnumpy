@@ -227,12 +227,12 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
                 ary = get_dndview(*((npy_intp*)msg_data));
                 t1 = msg_data+sizeof(npy_intp);
                 t2 = t1+ary->base->elsize;
-                //do_PUTGET_ITEM(1, ary, t1, (npy_intp*) t2);
+                handle_PutGetItem(1, ary, t1, (npy_intp*) t2);
                 break;
             case DNPY_GET_ITEM:
                 ary = get_dndview(*((npy_intp*)msg_data));
                 t1 = msg_data+sizeof(npy_intp);
-                //do_PUTGET_ITEM(0, ary, NULL, (npy_intp*) t1);
+                handle_PutGetItem(0, ary, NULL, (npy_intp*) t1);
                 break;
             case DNPY_COPY_INTO:
                 d1 = *((npy_intp*)msg_data);
