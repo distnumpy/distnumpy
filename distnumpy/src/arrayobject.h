@@ -121,13 +121,12 @@ typedef struct
 
 /*
  *===================================================================
- * Create a new base array.
+ * Create a new base array and updates the PyArrayObject.
  * If 'one_node_dist_rank' is positive it specifies the rank of an
  * one-node-distribution.
- * Returns the uid of the view of the new base array.
- * Return -1 and set exception on error.
+ * Return -1 and set exception on error, 0 on success.
  */
-static npy_intp
+static int
 PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank);
 
 /*===================================================================

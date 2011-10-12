@@ -1149,8 +1149,7 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
                 onedist = PyInt_AsLong(obj);
                 obj = NULL;
             }
-            self->dnduid = PyDistArray_NewBaseArray(self, onedist);
-            if(self->dnduid < 0)
+            if(PyDistArray_NewBaseArray(self, onedist) < 0)
                 goto fail;
 
             //NumPy should only allocate elsize.

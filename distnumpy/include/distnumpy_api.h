@@ -38,7 +38,7 @@ extern "C" {
 #define PyDistArray_MasterSlaveSplit_PROTO (PyObject *self, PyObject *args)
 
 #define PyDistArray_NewBaseArray_NUM 3
-#define PyDistArray_NewBaseArray_RETURN npy_intp
+#define PyDistArray_NewBaseArray_RETURN int
 #define PyDistArray_NewBaseArray_PROTO (PyArrayObject *ary, npy_intp one_node_dist_rank)
 
 #define PyDistArray_DelViewArray_NUM 4
