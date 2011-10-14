@@ -51,6 +51,8 @@ struct dndarray_struct
     int elsize;
     //Pointer to local data.
     char *data;
+    //Number of elements (global).
+    npy_intp nelem;
     //Number of local elements (local to the MPI-process).
     npy_intp localsize;
     //Size of local dimensions (local to the MPI-process).
