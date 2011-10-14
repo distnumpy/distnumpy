@@ -616,6 +616,9 @@ typedef struct _arr_descr {
         PyObject *shape;       /* a tuple */
 } PyArray_ArrayDescr;
 
+/* DISTNUMPY */
+#include "distnumpy_types.h"
+
 /*
  * The main array object structure. It is recommended to use the macros
  * defined below (PyArray_DATA and friends) access fields here, instead
@@ -649,7 +652,7 @@ typedef struct PyArrayObject {
         PyArray_Descr *descr;   /* Pointer to type structure */
         int flags;              /* Flags describing array -- see below */
         PyObject *weakreflist;  /* For weakreferences */
-        npy_intp dnduid;        /* DISTNUMPY Array UID */
+        dndview *distary;       /* DISTNUMPY Dist Array Struct */
 } PyArrayObject;
 
 #define NPY_AO PyArrayObject

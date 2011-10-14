@@ -22,7 +22,7 @@
 #include "distnumpy.h"
 //Tells numpy that this file initiate the module.
 #define PY_ARRAY_UNIQUE_SYMBOL DISTNUMPY_ARRAY_API
-#include "arrayobject.h"
+#include "numpy/arrayobject.h"
 #include "distnumpy_priv.h"
 #include <mpi.h>
 

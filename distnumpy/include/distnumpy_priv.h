@@ -2,7 +2,8 @@
 #define DISTNUMPY_PRIV_H
 #include "mpi.h"
 #include <sys/time.h>
-#include "ufuncobject.h"
+#include "distnumpy_types.h"
+#include "numpy/ufuncobject.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,9 +50,6 @@ extern "C" {
 //The work buffer memory alignment.
 #define DNPY_WORK_BUFFER_MEM_ALIGNMENT 32
 
-//Easy retrieval of dnduid
-#define PyArray_DNDUID(obj) (((PyArrayObject *)(obj))->dnduid)
-
 //Operation types
 enum opt {DNPY_MSG_END, DNPY_CREATE_ARRAY, DNPY_DESTROY_ARRAY,
           DNPY_CREATE_VIEW, DNPY_SHUTDOWN, DNPY_PUT_ITEM, DNPY_GET_ITEM,
@@ -63,42 +61,35 @@ enum opt {DNPY_MSG_END, DNPY_CREATE_ARRAY, DNPY_DESTROY_ARRAY,
           DNPY_TIME_RESET, DNPY_TIME_GETDICT, DNPY_INIT_PGRID,
           DNPY_COPY_INTO};
 
-//Type describing a sub-section of a view block.
-typedef struct
-{
-    //The rank of the MPI-process that owns this sub-block.
-    int rank;
-    //Start index (one per base-dimension).
-    npy_intp start[NPY_MAXDIMS];
-    //Number of elements (one per base-dimension).
-    npy_intp nsteps[NPY_MAXDIMS];
-    //Number of elements to next dimension (one per base-dimension).
-    npy_intp stride[NPY_MAXDIMS];
-    //The MPI communication offset (in bytes).
-    npy_intp comm_offset;
-    //Number of elements in this sub-view-block.
-    npy_intp nelem;
-    //This sub-view-block's root node.
-    dndnode **rootnode;
-    //Pointer to data. NULL if data needs to be fetched.
-    char *data;
-    //The rank of the MPI process that have received this svb.
-    //A negative value means that nothing has been received.
-    int comm_received_by;
-} dndsvb;
 
-//Type describing a view block.
-typedef struct
-{
-    //The id of the view block.
-    npy_intp uid;
-    //All sub-view-blocks in this view block (Row-major).
-    dndsvb *sub;
-    //Number of sub-view-blocks.
-    npy_intp nsub;
-    //Number of sub-view-blocks in each dimension.
-    npy_intp svbdims[NPY_MAXDIMS];
-} dndvb;
+//Macro that increases the work buffer pointer.
+#define WORKBUF_INC(bytes_taken)                                       \
+{                                                                      \
+    workbuf_nextfree += bytes_taken;                                   \
+    workbuf_nextfree += DNPY_WORK_BUFFER_MEM_ALIGNMENT -               \
+                        (((npy_intp)workbuf_nextfree)                  \
+                        % DNPY_WORK_BUFFER_MEM_ALIGNMENT);             \
+    if(workbuf_nextfree >= workbuf_max)                                \
+    {                                                                  \
+        fprintf(stderr, "Work buffer overflow - increase the maximum " \
+                "work buffer size or decrease the maximum DAG size. "  \
+                "The current values are %dMB and %d nodes,"            \
+                "respectively.\n", DNPY_WORK_BUFFER_MAXSIZE / 1048576, \
+                DNPY_MAX_VB_IN_SVB_DAG);                               \
+        MPI_Abort(MPI_COMM_WORLD, -1);                                 \
+    }                                                                  \
+    assert(((npy_intp) workbuf_nextfree) %                             \
+                       DNPY_WORK_BUFFER_MEM_ALIGNMENT == 0);           \
+}
+
+
+//Variables for statistics.
+#ifdef DNPY_STATISTICS
+    static int node_uid_count = 0;
+    static int op_uid_count = 0;
+    static dndarray *rootarray = NULL;
+#endif
+
 
 //The Super-type of a operation.
 //refcount         - number of dependency nodes in the svb DAG.
@@ -173,69 +164,6 @@ struct dndnode_struct
     #endif
 };
 
-//Type describing the timing data.
-typedef struct
-{
-    unsigned long long total;
-    unsigned long long dag_svb_flush;
-    unsigned long long dag_svb_rm;
-    unsigned long long apply_ufunc;
-    unsigned long long ufunc_comm;
-    unsigned long long comm_init;
-    unsigned long long arydata_free;
-    unsigned long long reduce_1d;
-    unsigned long long reduce_nd;
-    unsigned long long reduce_nd_apply;
-    unsigned long long zerofill;
-    unsigned long long ufunc_svb;
-    unsigned long long dag_svb_add;
-    unsigned long long calc_vblock;
-    unsigned long long arydata_malloc;
-    unsigned long long msg2slaves;
-    unsigned long long final_barrier;
-    npy_intp mem_reused;
-    npy_intp nconnect;
-    npy_intp nconnect_max;
-    npy_intp napply;
-    npy_intp nflush;
-} dndtime;
-
-//PyObject for the block iterator.
-typedef struct
-{
-    PyObject_HEAD
-    //The view that is iterated.
-    dndview *view;
-    //Current block coordinate.
-    npy_intp curblock[NPY_MAXDIMS];
-    //Slice of the blocks in the iterator.
-    dndslice slice[NPY_MAXDIMS];
-    //Strides for the Python array object.
-    npy_intp strides[NPY_MAXDIMS];
-    //Dimensions for the Python array object.
-    npy_intp dims[NPY_MAXDIMS];
-} dndblock_iter;
-
-//Macro that increases the work buffer pointer.
-#define WORKBUF_INC(bytes_taken)                                       \
-{                                                                      \
-    workbuf_nextfree += bytes_taken;                                   \
-    workbuf_nextfree += DNPY_WORK_BUFFER_MEM_ALIGNMENT -               \
-                        (((npy_intp)workbuf_nextfree)                  \
-                        % DNPY_WORK_BUFFER_MEM_ALIGNMENT);             \
-    if(workbuf_nextfree >= workbuf_max)                                \
-    {                                                                  \
-        fprintf(stderr, "Work buffer overflow - increase the maximum " \
-                "work buffer size or decrease the maximum DAG size. "  \
-                "The current values are %dMB and %d nodes,"            \
-                "respectively.\n", DNPY_WORK_BUFFER_MAXSIZE / 1048576, \
-                DNPY_MAX_VB_IN_SVB_DAG);                               \
-        MPI_Abort(MPI_COMM_WORLD, -1);                                 \
-    }                                                                  \
-    assert(((npy_intp) workbuf_nextfree) %                             \
-                       DNPY_WORK_BUFFER_MEM_ALIGNMENT == 0);           \
-}
-
 //MPI process variables.
 static int myrank, worldsize;
 static npy_intp blocksize;
@@ -267,12 +195,6 @@ typedef PyObject* (reduce_func_type)(PyUFuncObject *self,
                                      void *threadlock);
 static reduce_func_type *reduce_func = NULL;
 
-//Variables for statistics.
-#ifdef DNPY_STATISTICS
-    static int node_uid_count = 0;
-    static int op_uid_count = 0;
-    static dndarray *rootarray = NULL;
-#endif
 
 //Variables for timing.
 struct timeval tv;

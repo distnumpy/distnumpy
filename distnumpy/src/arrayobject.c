@@ -75,14 +75,17 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
     msg2slaves(msg,2*sizeof(npy_intp)+sizeof(dndarray)+sizeof(dndview));
 #endif
 
-    if(handle_NewBaseArray(newarray, newview) < 0)
-        return -1;
+    dndview *ret = handle_NewBaseArray(newarray, newview);
 
     //Freeup memory.
     free(newarray);
     free(newview);
 
-    ary->dnduid = uid_count;
+    if(ret == NULL)
+        return -1;
+
+    PyDistArray_ARRAY(ary) = ret;
+
     return 0;
 } /* PyDistArray_NewBaseArray */
 
@@ -90,9 +93,10 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
 /*===================================================================
  *
  * Handler for PyDistArray_NewBaseArray.
- * Return -1 and set exception on error, 0 on success.
+ * Return NULL and set exception on error.
+ * Return a pointer to the new dndview on success.
  */
-int handle_NewBaseArray(dndarray *ary, dndview *view)
+dndview *handle_NewBaseArray(dndarray *ary, dndview *view)
 {
     int ndims = ary->ndims;
     int *cdims = cart_dim_sizes[ndims-1];
@@ -109,7 +113,7 @@ int handle_NewBaseArray(dndarray *ary, dndview *view)
     if(view->base == NULL)
     {
         PyErr_NoMemory();
-        return -1;
+        return NULL;
     }
     memcpy(view->base, ary, sizeof(dndarray));
     ary = view->base;//Use the new pointer.
@@ -160,7 +164,7 @@ int handle_NewBaseArray(dndarray *ary, dndview *view)
     if(ary->rootnodes == NULL)
     {
         PyErr_NoMemory();
-        return -1;
+        return NULL;
     }
     for(i=0; i<ary->nblocks; i++)
         ary->rootnodes[i] = NULL;
@@ -182,9 +186,8 @@ int handle_NewBaseArray(dndarray *ary, dndview *view)
     if(view->nblocks == 0)
         memset(view->blockdims, 0, ndims * sizeof(npy_intp));
 
-    //Save the new view.
-    put_dndview(view);
-    return 0;
+    //Save and return the new view.
+    return put_dndview(view);
 } /* handle_NewBaseArray */
 
 /*
@@ -198,7 +201,7 @@ static int
 PyDistArray_DelViewArray(PyArrayObject *array)
 {
     //Get arrray structs.
-    dndview *ary = get_dndview(array->dnduid);
+    dndview *ary = PyDistArray_ARRAY(array);
 
 #ifndef DNPY_SPMD
     //Tell slaves about the destruction
@@ -251,7 +254,7 @@ PyDistArray_PutItem(PyArrayObject *ary, npy_intp coord[NPY_MAXDIMS],
                     PyObject *item)
 {
     //Get arrray structs.
-    dndview *view = get_dndview(ary->dnduid);
+    dndview *view = PyDistArray_ARRAY(ary);
 
     //Convert item to a compatible type.
     PyObject *item2 = PyArray_FROM_O(item);
@@ -300,7 +303,7 @@ PyDistArray_GetItem(PyArrayObject *ary, char *retdata,
                     npy_intp coord[NPY_MAXDIMS])
 {
     //Get arrray structs.
-    dndview *view = get_dndview(ary->dnduid);
+    dndview *view = PyDistArray_ARRAY(ary);
 
 #ifndef DNPY_SPMD
     //Tell slaves to send item.

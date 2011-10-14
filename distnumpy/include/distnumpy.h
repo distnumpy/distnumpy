@@ -25,8 +25,8 @@ extern "C" {
 
 //Only import when compiling distnumpymodule.c
 #ifdef DISTNUMPY_MODULE
-#include "ndarraytypes.h"
-#include "arrayobject.h"
+#include "numpy/ndarraytypes.h"
+#include "numpy/arrayobject.h"
 #endif
 
 //Flag indicating that it is a distributed array
@@ -37,7 +37,7 @@ extern "C" {
 //Easy attribute retrievals.
 #define PyDistArray_ISDIST(m) PyArray_CHKFLAGS(m,DNPY_DIST)
 #define PyDistArray_ISDIST_ONENODE(m) PyArray_CHKFLAGS(m,DNPY_DIST_ONENODE)
-#define PyDistArray_DNDUID(obj) (((PyArrayObject *)(obj))->dnduid)
+#define PyDistArray_ARRAY(obj) (((PyArrayObject *)(obj))->distary)
 
 //Import the API.
 #include "distnumpy_api.h"

@@ -30,7 +30,7 @@ def build(build_path):
                                  sources=[join('distnumpy','src','distnumpymodule.c')],
                                  include_dirs=[join('distnumpy','include'),
                                                join('distnumpy','private'),
-                                               join('numpy','core','include','numpy'),
+                                               join('numpy','core','include'),
                                                join(build_path, 'numpy','core','include','numpy')],
                                  extra_compile_args=[],
                                  extra_link_args=[],
