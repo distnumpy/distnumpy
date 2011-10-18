@@ -27,6 +27,38 @@
 
 #include <errno.h>
 #include <sys/mman.h>
+#include <signal.h>
+
+/*
+ *===================================================================
+ * Signal handler for SIGSEGV.
+ * Private.
+ */
+static void
+sighandler(int signal_number, siginfo_t *info, void *context)
+{
+    //Iterate through all arrays.
+    dndarray *tary = rootarray;
+    while(tary != NULL)
+    {
+        npy_uintp addr = (npy_uintp)info->si_addr;
+        if(tary->mprotected_start <= addr && addr < tary->mprotected_end)
+           break;
+
+        //Go to the next ary.
+        tary = tary->next;
+    }
+
+    if(tary == NULL)//Normal segfault.
+    {
+        signal(signal_number, SIG_DFL);
+    }
+    else//Segfault triggered by accessing the protected data pointer.
+    {
+        printf("Dist segfault on address %p, which is array: %p", info->si_addr, tary);
+        signal(signal_number, SIG_DFL);
+    }
+}
 
 /*
  *===================================================================
@@ -34,6 +66,14 @@
  */
 int arydat_init(void)
 {
+   // Install Signal handler
+   struct sigaction sact;
+
+   sigfillset(&(sact.sa_mask));
+   sact.sa_flags = SA_SIGINFO | SA_ONSTACK;
+   sact.sa_sigaction = sighandler;
+   sigaction (SIGSEGV, &sact, &sact);
+
 
     return 0;
 } /* arydat_init */
@@ -50,7 +90,7 @@ int arydat_finalize(void)
 
 /*
  *===================================================================
- * Allocate data memory for the 'ary'.
+ * Allocate protected data memory for the 'ary'.
  * Return -1 and set exception on error, 0 on success.
  */
 int arydat_malloc(PyArrayObject *ary)
@@ -58,10 +98,10 @@ int arydat_malloc(PyArrayObject *ary)
     dndview *view = PyDistArray_ARRAY(ary);
     npy_int size = view->base->nelem * view->base->elsize;
 
-    //Allocate page-size alligned memory.
+    //Allocate page-size aligned memory.
     //The MAP_PRIVATE and MAP_ANONYMOUS flags is not 100% portable. See:
     //<http://stackoverflow.com/questions/4779188/how-to-use-mmap-to-allocate-a-memory-in-heap>
-    void *addr = mmap(0, size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    void *addr = mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     if(addr == MAP_FAILED)
     {
         int errsv = errno;//mmap() sets the errno.
@@ -71,8 +111,21 @@ int arydat_malloc(PyArrayObject *ary)
         return -1;
     }
 
+    //Protect the memory.
+    if(mprotect(addr, size, PROT_NONE) == -1)
+    {
+        int errsv = errno;//mprotect() sets the errno.
+        PyErr_Format(PyExc_RuntimeError, "The Array Data Protection "
+                     "could not mmap a data region. "
+                     "Returned error code by mmap: %s.", strerror(errsv));
+        return -1;
+    }
+
     //Update the ary data pointer.
     PyArray_BYTES(ary) = addr;
+    //We also need to save the start and end address.
+    view->base->mprotected_start = (npy_uintp)addr;
+    view->base->mprotected_end = view->base->mprotected_start + size;
 
     return 0;
 }/* arydat_malloc */

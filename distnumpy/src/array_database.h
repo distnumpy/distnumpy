@@ -31,15 +31,14 @@ extern "C" {
 
 
 //Current number of dndviews allocated.
-static npy_intp ndndarrays=0;
+npy_intp ndndarrays=0;
 //Root when traversing all arrays.
-static dndarray *rootarray = NULL;
+dndarray *rootarray = NULL;
 
 /*===================================================================
  *
  * Put, get & remove views from the local array database.
  */
-dndview *get_dndview(npy_intp uid);
 dndview *get_dndview(npy_intp uid);
 dndview *put_dndview(dndview *view);
 void rm_dndview(npy_intp uid);
