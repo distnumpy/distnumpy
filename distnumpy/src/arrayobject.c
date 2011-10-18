@@ -34,41 +34,36 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
         PyDistArray_ProcGridSet(NULL,NULL);
 
     //Create dndarray.
-    dndarray *newarray = malloc(sizeof(dndarray));
-    dndview *newview = malloc(sizeof(dndview));
-    if(newarray == NULL || newview == NULL)
-    {
-        PyErr_NoMemory();
-        return -1;
-    }
-    newarray->dtype = PyArray_TYPE(ary);
-    newarray->elsize = PyArray_ITEMSIZE(ary);
-    newarray->ndims = PyArray_NDIM(ary);
-    newarray->nelem = PyArray_SIZE(ary);
-    newarray->refcount = 1;
-    newarray->onerank = one_node_dist_rank;
+    dndarray newarray;
+    newarray.dtype = PyArray_TYPE(ary);
+    newarray.elsize = PyArray_ITEMSIZE(ary);
+    newarray.ndims = PyArray_NDIM(ary);
+    newarray.nelem = PyArray_SIZE(ary);
+    newarray.refcount = 1;
+    newarray.onerank = one_node_dist_rank;
     for(i=0; i<PyArray_NDIM(ary); i++)
-        newarray->dims[i] = PyArray_DIM(ary, i);
+        newarray.dims[i] = PyArray_DIM(ary, i);
 
     //Create dndview. NB: the base will have to be set when 'newarray'
     //has found its final resting place. (Done by put_dndarray).
-    newview->uid = ++uid_count;
-    newview->nslice = PyArray_NDIM(ary);
-    newview->ndims = PyArray_NDIM(ary);
-    newview->alterations = 0;
+    dndview newview;
+    newview.uid = ++uid_count;
+    newview.nslice = PyArray_NDIM(ary);
+    newview.ndims = PyArray_NDIM(ary);
+    newview.alterations = 0;
     for(i=0; i<PyArray_NDIM(ary); i++)
     {
         //Default the view will span over the whole array.
-        newview->slice[i].start = 0;
-        newview->slice[i].step = 1;
-        newview->slice[i].nsteps = PyArray_DIM(ary, i);
+        newview.slice[i].start = 0;
+        newview.slice[i].step = 1;
+        newview.slice[i].nsteps = PyArray_DIM(ary, i);
     }
 
 #ifndef DNPY_SPMD
     //Tell slaves about the new array
     msg[0] = DNPY_CREATE_ARRAY;
-    memcpy(&msg[1], newarray, sizeof(dndarray));
-    memcpy(((char *) &msg[1]) + sizeof(dndarray), newview,
+    memcpy(&msg[1], &newarray, sizeof(dndarray));
+    memcpy(((char *) &msg[1]) + sizeof(dndarray), &newview,
            sizeof(dndview));
 
     *(((char *) &msg[1])+sizeof(dndarray)+sizeof(dndview)) = DNPY_MSG_END;
@@ -76,11 +71,7 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
     msg2slaves(msg,2*sizeof(npy_intp)+sizeof(dndarray)+sizeof(dndview));
 #endif
 
-    dndview *ret = handle_NewBaseArray(newarray, newview);
-
-    //Freeup memory.
-    free(newarray);
-    free(newview);
+    dndview *ret = handle_NewBaseArray(&newarray, &newview);
 
     if(ret == NULL)
         return -1;
