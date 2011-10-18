@@ -34,12 +34,14 @@
 #include "arrayobject.h"
 #include "dependency_system.h"
 #include "process_grid.h"
+#include "arraydata.h"
 #include "helpers.c"
 #include "array_database.c"
 #include "memory.c"
 #include "arrayobject.c"
 #include "dependency_system.c"
 #include "process_grid.c"
+#include "arraydata.c"
 
 /*
  * ===================================================================
@@ -112,6 +114,9 @@ PyDistArray_Init(void)
     }
     MPI_Bcast(&blocksize, sizeof(npy_intp), MPI_BYTE, 0, MPI_COMM_WORLD);
 
+    //Init the Array Data Protection.
+    arydat_init();
+
     return 0;
 } /* PyDistArray_Init */
 
@@ -159,6 +164,9 @@ PyDistArray_Exit(void)
 
     //De-allocate the memory pool.
     mem_pool_finalize();
+
+    //Finalize the Array Data Protection.
+    arydat_finalize();
 
     MPI_Finalize();
 } /* PyDistArray_Exit */

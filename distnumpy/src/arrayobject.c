@@ -87,7 +87,9 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
 
     PyDistArray_ARRAY(ary) = ret;
 
-    return 0;
+    //Protect the original NumPy data pointer.
+    //This is only done by the Master MPI Process.
+    return arydat_malloc(ary);
 } /* PyDistArray_NewBaseArray */
 
 
@@ -212,7 +214,16 @@ PyDistArray_DelViewArray(PyArrayObject *array)
     msg2slaves(msg,3 * sizeof(npy_intp));
 #endif
 
-    return handle_DelViewArray(ary->uid);
+    if(handle_DelViewArray(ary->uid) == -1)
+        return -1;
+
+    //We have to free the protected data pointer when the NumPy array
+    //is not a view.
+    if((array->flags & NPY_OWNDATA) && array->data != NULL)
+        return arydat_free(array);
+
+    return 0;
+
 } /* PyDistArray_DelViewArray */
 
 /*===================================================================

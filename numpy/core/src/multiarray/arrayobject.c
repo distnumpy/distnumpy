@@ -226,7 +226,11 @@ array_dealloc(PyArrayObject *self) {
 
     /* DISTNUMPY */
     if(PyDistArray_ISDIST(self))
-        PyDistArray_DelViewArray(self);
+        if(PyDistArray_DelViewArray(self) == -1)
+        {
+            PyErr_Print();
+            PyErr_Clear();
+        }
 
     _array_dealloc_buffer_info(self);
 
@@ -271,7 +275,9 @@ array_dealloc(PyArrayObject *self) {
              * self already...
              */
         }
-        PyDataMem_FREE(self->data);
+        /* DISTNUMPY */
+        if(!PyDistArray_ISDIST(self))
+            PyDataMem_FREE(self->data);
     }
 
     PyDimMem_FREE(self->dimensions);

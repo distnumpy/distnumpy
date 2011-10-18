@@ -1151,31 +1151,30 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
             }
             if(PyDistArray_NewBaseArray(self, onedist) < 0)
                 goto fail;
-
-            //NumPy should only allocate elsize.
-            sd = 0;
         }
+        else
+        {
+            /*
+             * Allocate something even for zero-space arrays
+             * e.g. shape=(0,) -- otherwise buffer exposure
+             * (a.data) doesn't work as it should.
+             */
+            if (sd == 0) {
+                sd = descr->elsize;
+            }
+            self->data = PyDataMem_NEW(sd);
+            if (self->data == NULL) {
+                PyErr_NoMemory();
+                goto fail;
+            }
 
-        /*
-         * Allocate something even for zero-space arrays
-         * e.g. shape=(0,) -- otherwise buffer exposure
-         * (a.data) doesn't work as it should.
-         */
-        if (sd == 0) {
-            sd = descr->elsize;
-        }
-        self->data = PyDataMem_NEW(sd);
-        if (self->data == NULL) {
-            PyErr_NoMemory();
-            goto fail;
-        }
-
-        /*
-         * It is bad to have unitialized OBJECT pointers
-         * which could also be sub-fields of a VOID array
-         */
-        if (PyDataType_FLAGCHK(descr, NPY_NEEDS_INIT)) {
-            memset(self->data, 0, sd);
+            /*
+             * It is bad to have unitialized OBJECT pointers
+             * which could also be sub-fields of a VOID array
+             */
+            if (PyDataType_FLAGCHK(descr, NPY_NEEDS_INIT)) {
+                memset(self->data, 0, sd);
+            }
         }
         self->flags |= OWNDATA;
     }
