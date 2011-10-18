@@ -467,3 +467,39 @@ int handle_PutGetItem(int Direction, dndview *view, char* item,
 
     return 0;
 } /* handle_PutGetItem */
+
+
+/*===================================================================
+ *
+ * Un-distributes the array by transferring all data to the master
+ * MPI-process.
+ * Return -1 and set exception on error, 0 on success.
+ */
+int PyDistArray_UnDist(dndarray *ary)
+{
+
+    #ifndef DNPY_SPMD
+        msg[0] = DNPY_UNDIST;
+        msg[1] = ary->uid;
+        msg[2] = DNPY_MSG_END;
+        msg2slaves(msg, 3*sizeof(npy_intp));
+    #endif
+
+    handle_UnDist(ary->uid);
+
+
+    return 0;
+} /* PyDistArray_UnDist */
+
+
+/*===================================================================
+ *
+ * Handler for PyDistArray_UnDist.
+ * Return -1 and set exception on error, 0 on success.
+ */
+int handle_UnDist(npy_intp ary_uid)
+{
+
+
+    return 0;
+} /* handle_UnDist */

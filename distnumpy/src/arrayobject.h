@@ -90,6 +90,21 @@ PyDistArray_GetItem(PyArrayObject *ary, char *retdata,
 int handle_PutGetItem(int Direction, dndview *view, char* item,
                       npy_intp coord[NPY_MAXDIMS]);
 
+/*===================================================================
+ *
+ * Un-distributes the array by transferring all data to the master
+ * MPI-process.
+ * Return -1 and set exception on error, 0 on success.
+ */
+int PyDistArray_UnDist(dndarray *ary);
+
+/*===================================================================
+ *
+ * Handler for PyDistArray_UnDist.
+ * Return -1 and set exception on error, 0 on success.
+ */
+int handle_UnDist(npy_intp ary_uid);
+
 
 #ifdef __cplusplus
 }
