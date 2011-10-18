@@ -18,6 +18,8 @@
 
 #include "methods.h"
 
+/* DISTNUMPY */
+#include "distnumpy.h"
 
 /* NpyArg_ParseKeywords
  *
@@ -2114,6 +2116,19 @@ array_setflags(PyArrayObject *self, PyObject *args, PyObject *kwds)
     return Py_None;
 }
 
+/* DISTNUMPY */
+static PyObject *
+array_undist(PyArrayObject *self, PyObject *args)
+{
+    //No arguments.
+    if (!PyArg_ParseTuple(args, "")) {
+        return NULL;
+    }
+
+    PyDistArray_UnDist(PyDistArray_ARRAY(self)->base);
+
+    return Py_None;
+}
 
 static PyObject *
 array_newbyteorder(PyArrayObject *self, PyObject *args)
@@ -2325,6 +2340,10 @@ NPY_NO_EXPORT PyMethodDef array_methods[] = {
     {"view",
         (PyCFunction)array_view,
         METH_VARARGS | METH_KEYWORDS, NULL},
+    /* DISTNUMPY */
+    {"undist",
+        (PyCFunction)array_undist,
+        METH_VARARGS, NULL},
     {NULL, NULL, 0, NULL}           /* sentinel */
 };
 
