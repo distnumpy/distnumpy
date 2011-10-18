@@ -112,17 +112,15 @@ dndview *handle_NewBaseArray(dndarray *ary, dndview *view)
     memcpy(view->base, ary, sizeof(dndarray));
     ary = view->base;//Use the new pointer.
 
-    //Append the array to the lisked list when statistic is defined.
-    #ifdef DNPY_STATISTICS
-        ary->prev = NULL;
-        ary->next = rootarray;
-        rootarray = ary;
-        if(ary->next != NULL)
-        {
-            assert(ary->next->prev == NULL);
-            ary->next->prev = rootarray;
-        }
-    #endif
+    //Append the array to the linked list.
+    ary->prev = NULL;
+    ary->next = rootarray;
+    rootarray = ary;
+    if(ary->next != NULL)
+    {
+        assert(ary->next->prev == NULL);
+        ary->next->prev = rootarray;
+    }
 
     //Get cartesian coords.
     rank2cart(ndims, myrank, cartcoord);

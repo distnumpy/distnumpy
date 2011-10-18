@@ -65,32 +65,27 @@ void rm_dndview(npy_intp uid)
                 dndviews_uid[i] = 0;
                 if(view->base->ndims == 0)//Dummy Scalar.
                 {
-                    //Remove the array from to the lisked list used
-                    //when statistic is defined.
-                    #ifdef DNPY_STATISTICS
-                        if(view->base->next != NULL)
-                            view->base->next->prev = view->base->prev;
-                        if(view->base->prev != NULL)
-                            view->base->prev->next = view->base->next;
-                        else
-                            rootarray = view->base->next;
-                    #endif
+                    //Remove the array from to the linked list.
+                    if(view->base->next != NULL)
+                        view->base->next->prev = view->base->prev;
+                    if(view->base->prev != NULL)
+                        view->base->prev->next = view->base->next;
+                    else
+                        rootarray = view->base->next;
                     free(view->base->rootnodes);
                     free(view->base->data);
                     free(view->base);
                 }
                 else if(--view->base->refcount == 0)
                 {
-                    //Remove the array from to the lisked list used
-                    //when statistic is defined.
-                    #ifdef DNPY_STATISTICS
-                        if(view->base->next != NULL)
-                            view->base->next->prev = view->base->prev;
-                        if(view->base->prev != NULL)
-                            view->base->prev->next = view->base->next;
-                        else
-                            rootarray = view->base->next;
-                    #endif
+                    //Remove the array from to the linked list.
+                    if(view->base->next != NULL)
+                        view->base->next->prev = view->base->prev;
+                    if(view->base->prev != NULL)
+                        view->base->prev->next = view->base->next;
+                    else
+                        rootarray = view->base->next;
+
                     MPI_Type_free(&view->base->mpi_dtype);
                     if(view->base->data != NULL)
                     {

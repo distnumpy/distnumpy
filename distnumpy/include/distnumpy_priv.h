@@ -87,7 +87,6 @@ enum opt {DNPY_MSG_END, DNPY_CREATE_ARRAY, DNPY_DESTROY_ARRAY,
 #ifdef DNPY_STATISTICS
     static int node_uid_count = 0;
     static int op_uid_count = 0;
-    static dndarray *rootarray = NULL;
 #endif
 
 

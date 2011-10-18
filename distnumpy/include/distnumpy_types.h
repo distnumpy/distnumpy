@@ -64,10 +64,8 @@ struct dndarray_struct
     //Root nodes (one per block).
     dndnode **rootnodes;
     //Next and prev are used for traversing all arrays.
-    #ifdef DNPY_STATISTICS
-        dndarray *next;
-        dndarray *prev;
-    #endif
+    dndarray *next;
+    dndarray *prev;
     //When onerank is positiv this array is only distributed on that
     //MPI-process rank.
     npy_intp onerank;

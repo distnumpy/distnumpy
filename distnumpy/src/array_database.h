@@ -32,6 +32,8 @@ extern "C" {
 
 //Current number of dndviews allocated.
 static npy_intp ndndarrays=0;
+//Root when traversing all arrays.
+static dndarray *rootarray = NULL;
 
 /*===================================================================
  *
