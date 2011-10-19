@@ -617,7 +617,7 @@ typedef struct _arr_descr {
 } PyArray_ArrayDescr;
 
 /* DISTNUMPY */
-#include "distnumpy_types.h"
+#include "distnumpy_prototypes.h"
 
 /*
  * The main array object structure. It is recommended to use the macros
@@ -654,6 +654,9 @@ typedef struct PyArrayObject {
         PyObject *weakreflist;  /* For weakreferences */
         dndview *distary;       /* DISTNUMPY Dist Array Struct */
 } PyArrayObject;
+
+/* DISTNUMPY */
+#include "distnumpy_types.h"
 
 #define NPY_AO PyArrayObject
 

@@ -801,6 +801,7 @@ def configuration(parent_package='',top_path=None):
     multiarray_deps.append(join('..','..','distnumpy','include', 'distnumpy.h'))
     multiarray_deps.append(join('..','..','distnumpy','include', 'distnumpy_api.h'))
     multiarray_deps.append(join('..','..','distnumpy','include', 'distnumpy_types.h'))
+    multiarray_deps.append(join('..','..','distnumpy','include', 'distnumpy_prototypes.h'))
 
     config.add_extension('multiarray',
                          sources = multiarray_src +

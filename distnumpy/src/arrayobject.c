@@ -77,6 +77,7 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
         return -1;
 
     PyDistArray_ARRAY(ary) = ret;
+    ret->base->pyary = ary;
 
     //Protect the original NumPy data pointer.
     //This is only done by the Master MPI Process.

@@ -24,11 +24,8 @@ extern "C" {
 #endif
 
 #include <mpi.h>
+#include <distnumpy_prototypes.h>
 #include <numpy/ndarraytypes.h>
-
-//Datatype prototypes.
-typedef struct dndnode_struct dndnode;
-typedef struct dndarray_struct dndarray;
 
 //Type describing a distributed array.
 struct dndarray_struct
@@ -73,6 +70,8 @@ struct dndarray_struct
     npy_intp mprotected_start;
     //memory protected end address (excl.).
     npy_intp mprotected_end;
+    //Pointer to the NumPy array that created this dndarray.
+    PyArrayObject *pyary;
 };
 
 //dndslice constants.
@@ -98,7 +97,7 @@ typedef struct
 #define DNPY_NONALIGNED 0x008
 
 //Type describing a view of a distributed array.
-typedef struct
+struct dndview_struct
 {
     //Unique identification.
     npy_intp uid;
@@ -122,7 +121,7 @@ typedef struct
     npy_intp nblocks;
     //Number of view-blocks in each viewable dimension.
     npy_intp blockdims[NPY_MAXDIMS];
-} dndview;
+};
 
 
 //Type describing a sub-section of a view block.
