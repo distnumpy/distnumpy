@@ -2125,7 +2125,8 @@ array_undist(PyArrayObject *self, PyObject *args)
         return NULL;
     }
 
-    PyDistArray_UnDist(PyDistArray_ARRAY(self)->base);
+    if(PyDistArray_UnDist(PyDistArray_ARRAY(self)->base) == -1)
+        return NULL;
 
     return Py_None;
 }

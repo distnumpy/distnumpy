@@ -1193,6 +1193,8 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
                             "creating a view based on a distributed "
                             "array. Only the creations of new arrays "
                             "are supported\n");
+            //The array never really became distributed.
+            self->flags &= ~DNPY_DIST;
             goto fail;
         }
     }
