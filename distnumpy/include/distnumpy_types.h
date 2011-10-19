@@ -66,6 +66,8 @@ struct dndarray_struct
     //When onerank is positiv this array is only distributed on that
     //MPI-process rank.
     npy_intp onerank;
+    //Flag indicating whether the array is distributed or not.
+    int isdist;
     //Memory protected start address (incl.).
     npy_intp mprotected_start;
     //memory protected end address (excl.).

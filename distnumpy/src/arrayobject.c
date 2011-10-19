@@ -39,6 +39,7 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
     newarray.elsize = PyArray_ITEMSIZE(ary);
     newarray.ndims = PyArray_NDIM(ary);
     newarray.nelem = PyArray_SIZE(ary);
+    newarray.isdist = 1;
     newarray.refcount = 1;
     newarray.onerank = one_node_dist_rank;
     for(i=0; i<PyArray_NDIM(ary); i++)
