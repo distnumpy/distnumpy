@@ -479,10 +479,7 @@ int PyDistArray_UnDist(dndarray *ary)
         msg2slaves(msg, 3*sizeof(npy_intp));
     #endif
 
-    handle_UnDist(ary->uid);
-
-
-    return 0;
+    return handle_UnDist(ary);
 } /* PyDistArray_UnDist */
 
 
@@ -491,7 +488,7 @@ int PyDistArray_UnDist(dndarray *ary)
  * Handler for PyDistArray_UnDist.
  * Return -1 and set exception on error, 0 on success.
  */
-int handle_UnDist(npy_intp ary_uid)
+int handle_UnDist(dndarray *ary)
 {
 
 

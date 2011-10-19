@@ -242,6 +242,12 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
                 t1 = msg_data+sizeof(npy_intp);
                 handle_PutGetItem(0, ary, NULL, (npy_intp*) t1);
                 break;
+            case DNPY_UNDIST:
+            {
+                dndarray *a = get_dndarray(*((npy_intp*)msg_data));
+                handle_UnDist(a);
+                break;
+            }
             case DNPY_COPY_INTO:
                 d1 = *((npy_intp*)msg_data);
                 d2 = *(((npy_intp*)msg_data)+1);
