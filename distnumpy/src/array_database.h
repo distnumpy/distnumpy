@@ -37,6 +37,14 @@ dndarray *rootarray = NULL;
 
 /*===================================================================
  *
+ * Put, get & remove arrays from the local array database.
+ */
+dndarray *get_dndarray(npy_intp uid);
+dndarray *put_dndarray(dndarray *ary);
+void rm_dndarray(npy_intp uid);
+
+/*===================================================================
+ *
  * Put, get & remove views from the local array database.
  */
 dndview *get_dndview(npy_intp uid);

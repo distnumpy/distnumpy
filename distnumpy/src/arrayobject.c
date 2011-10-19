@@ -90,9 +90,9 @@ PyDistArray_NewBaseArray(PyArrayObject *ary, npy_intp one_node_dist_rank)
  * Return NULL and set exception on error.
  * Return a pointer to the new dndview on success.
  */
-dndview *handle_NewBaseArray(dndarray *ary, dndview *view)
+dndview *handle_NewBaseArray(dndarray *array, dndview *view)
 {
-    int ndims = ary->ndims;
+    int ndims = array->ndims;
     int *cdims = cart_dim_sizes[ndims-1];
     npy_intp i;
     int cartcoord[NPY_MAXDIMS];
@@ -100,17 +100,11 @@ dndview *handle_NewBaseArray(dndarray *ary, dndview *view)
     ++ndndarrays;
 
     //Save array uid.
-    ary->uid = view->uid;
+    array->uid = view->uid;
 
-    //Allocate and copy the array to the views's base.
-    view->base = malloc(sizeof(dndarray));
-    if(view->base == NULL)
-    {
-        PyErr_NoMemory();
-        return NULL;
-    }
-    memcpy(view->base, ary, sizeof(dndarray));
-    ary = view->base;//Use the new pointer.
+    //Save the new array-base.
+    dndarray *ary = put_dndarray(array);
+    view->base = ary;
 
     //Append the array to the linked list.
     ary->prev = NULL;
