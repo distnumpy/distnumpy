@@ -194,6 +194,189 @@ dndview *handle_NewBaseArray(dndarray *array, dndview *view)
     return put_dndview(view);
 } /* handle_NewBaseArray */
 
+
+/*
+ *===================================================================
+ * Create a new view of an array and updates the PyArrayObject.
+ * Return -1 and set exception on error, 0 on success.
+ */
+static int
+PyDistArray_NewViewArray(PyArrayObject *orig_ary, PyArrayObject *new_ary,
+                         int nslice, dndslice slice[NPY_MAXDIMS])
+{
+    dndview *orgview = PyDistArray_ARRAY(orig_ary);
+
+    //Create new view based on 'org_view' and the 'slice'.
+    dndview newview;
+    newview.uid = ++uid_count;
+    newview.ndims = 0;
+    newview.alterations = 0;
+    newview.nblocks = 1;
+
+    //Merging the two views.
+    int si = 0; //slice index.
+    int ni = 0; //new index.
+    int oi = 0; //old index.
+    int di = 0; //dim index.
+    while(si < nslice || oi < orgview->nslice)
+    {
+        //If we come to the end of the slices, that happens
+        //if not all dimensions is included in the 'slices', we will
+        //use the whole dimension.
+        int vs = (si < nslice)?1:0;//Valid slice.
+
+        //If dimension is invisible we will just copy it to 'newview'.
+        if(oi < orgview->nslice &&
+           orgview->slice[oi].nsteps == SingleIndex)
+        {
+            memcpy(&newview.slice[ni], &orgview->slice[oi],
+                   sizeof(dndslice));
+            ni++; oi++; di++;
+            newview.alterations |= DNPY_NDIMS;
+        }
+        //A single index makes the dimension invisible.
+        else if(vs && slice[si].nsteps == SingleIndex)
+        {
+            //If dimension is a Pseudo-dimension then just go to next
+            //dimension.
+            if(orgview->slice[oi].nsteps == PseudoIndex)
+            {
+                si++; oi++;
+            }
+            else
+            {//Copy single index to 'newview'.
+                newview.slice[ni].step = 0;
+                newview.slice[ni].nsteps = SingleIndex;
+                newview.slice[ni].start = orgview->slice[oi].start +
+                                          (vs?slice[si].start:0) *
+                                          orgview->slice[oi].step;
+                si++; ni++; oi++; di++;
+                newview.alterations |= DNPY_NDIMS;
+            }
+        }
+        //If a extra pseudo index should be added we just copy the
+        //slice to 'newview'.
+        else if(vs && slice[si].nsteps == PseudoIndex)
+        {
+            memcpy(&newview.slice[ni], &slice[si], sizeof(dndslice));
+            ni++; si++;
+            newview.ndims++;
+            newview.alterations |= DNPY_NDIMS;
+        }
+        else if(orgview->slice[oi].nsteps == PseudoIndex)
+        {
+            memcpy(&newview.slice[ni], &orgview->slice[oi],
+                   sizeof(dndslice));
+
+            if(slice[si].start > 0)
+            {
+                //This is a special case where the user indexes the
+                //PseudoIndex, which is legal and will return [].
+                newview.nblocks = 0;
+            }
+
+            ni++; oi++; si++;
+            newview.ndims++;
+            newview.alterations |= DNPY_NDIMS;
+        }
+        //If no special slices we just merge the two views.
+        else
+        {
+            if(vs)
+            {
+                newview.slice[ni].start = orgview->slice[oi].start +
+                                           slice[si].start *
+                                           orgview->slice[oi].step;
+                newview.slice[ni].step = slice[si].step *
+                                          orgview->slice[oi].step;
+                newview.slice[ni].nsteps = slice[si].nsteps;
+            }
+            else
+                memcpy(&newview.slice[ni], &orgview->slice[oi],
+                       sizeof(dndslice));
+
+            if(newview.slice[ni].step > 1)
+                newview.alterations |= DNPY_STEP | DNPY_NSTEPS;
+            else if(newview.slice[ni].nsteps < orgview->base->dims[di])
+            {
+                newview.alterations |= DNPY_NSTEPS;
+            }
+            newview.ndims++;
+            si++; ni++; oi++; di++;
+        }
+    }
+    //Save the total number of sliceses for the new view.
+    newview.nslice = ni;
+
+    //Check if the view is not block alligned
+    for(si=0; si<newview.nslice; ++si)
+        if(newview.slice[si].start % blocksize != 0 ||
+           newview.slice[si].step != 1)
+        {
+            newview.alterations |= DNPY_NONALIGNED;
+            break;
+        }
+
+#ifndef DNPY_SPMD
+    //Tell slaves about the new view.
+    //NB: It is up to the slaves to add the newview.base adresse.
+    msg[0] = DNPY_CREATE_VIEW;
+    msg[1] = orgview->uid;
+    memcpy(&msg[2], &newview, sizeof(dndview));
+    *(((char *) &msg[2])+sizeof(dndview)) = DNPY_MSG_END;
+
+    msg2slaves(msg, 3 * sizeof(npy_intp) + sizeof(dndview));
+#endif
+
+    PyDistArray_ARRAY(new_ary) = handle_NewViewArray(orgview, &newview);
+
+    return 0;
+
+}/* PyDistArray_NewViewArray */
+
+
+/*===================================================================
+ *
+ * Handler for PyDistArray_NewViewArray.
+ * Return NULL and set exception on error.
+ * Return a pointer to the new dndview on success.
+ */
+dndview *handle_NewViewArray(dndview *orgview, dndview *newview)
+{
+    npy_intp n, i, j;
+
+    //Add the base to the new view.
+    assert(orgview->base->refcount > 0);
+    newview->base = orgview->base;
+    newview->base->refcount++;
+
+    //Compute size of view-blocks.
+    if(newview->nblocks == 0)//The view is empty
+    {
+        memset(newview->blockdims, 0, newview->ndims * sizeof(npy_intp));
+    }
+    else
+    {
+        newview->nblocks = 1;
+        n=0;
+        for(i=0; i < newview->nslice; i++)
+        {
+            if(newview->slice[i].nsteps != SingleIndex)
+            {
+                j = 1;//SingleIndex has length one.
+                if(newview->slice[i].nsteps != PseudoIndex)
+                    j = newview->slice[i].nsteps;
+
+                newview->blockdims[n] = ceil(j / (double) blocksize);
+                newview->nblocks *= newview->blockdims[n];
+                n++;
+            }
+        }
+    }
+    //Save and return the view.
+    return put_dndview(newview);
+}/* handle_NewViewArray */
+
 /*
  *===================================================================
  * Delete array view.

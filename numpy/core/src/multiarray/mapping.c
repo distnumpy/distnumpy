@@ -64,6 +64,16 @@ array_big_item(PyArrayObject *self, intp i)
     if (r == NULL) {
         return NULL;
     }
+    /* DISTNUMPY */
+    if(PyDistArray_IsDist(self))
+    {
+        //Lets make a slice covering the whole 'self' array beside
+        //the Single Index 'i'.
+        dndslice slice = {i, 0, SingleIndex};
+        //And then create the new view based on 'self'.
+        if(PyDistArray_NewViewArray(self, r, 1,  &slice) == -1)
+            return NULL;
+    }
     Py_INCREF(self);
     r->base = (PyObject *)self;
     PyArray_UpdateFlags(r, CONTIGUOUS | FORTRAN);
@@ -503,6 +513,9 @@ NPY_NO_EXPORT PyObject *
 array_subscript_simple(PyArrayObject *self, PyObject *op)
 {
     intp dimensions[MAX_DIMS], strides[MAX_DIMS];
+    /* DISTNUMPY */
+    dndslice slice[MAX_DIMS];
+    int nslice=0;
     intp offset;
     int nd;
     PyArrayObject *other;
@@ -515,8 +528,17 @@ array_subscript_simple(PyArrayObject *self, PyObject *op)
     PyErr_Clear();
 
     /* Standard (view-based) Indexing */
-    if ((nd = parse_index(self, op, dimensions, strides, &offset)) == -1) {
+    if(PyDistArray_IsDist(self))/* DISTNUMPY */
+    {
+        if((nd = parse_dist_index(self, op, dimensions, strides,
+                                  &offset, &nslice, slice)) == -1)
         return NULL;
+    }
+    else
+    {
+        if((nd = parse_index(self, op, dimensions, strides,
+                             &offset)) == -1)
+            return NULL;
     }
     /* This will only work if new array will be a view */
     Py_INCREF(self->descr);
@@ -527,6 +549,12 @@ array_subscript_simple(PyArrayObject *self, PyObject *op)
                               self->flags,
                               (PyObject *)self)) == NULL) {
         return NULL;
+    }
+    /* DISTNUMPY */
+    if(PyDistArray_IsDist(self))
+    {
+        if(PyDistArray_NewViewArray(self, other, nslice,  slice) == -1)
+            return NULL;
     }
     other->base = (PyObject *)self;
     Py_INCREF(self);

@@ -65,9 +65,12 @@ extern "C" {
 #define PyDistArray_IsDist_RETURN int
 #define PyDistArray_IsDist_PROTO (PyArrayObject *ary)
 
+#define PyDistArray_NewViewArray_NUM 10
+#define PyDistArray_NewViewArray_RETURN int
+#define PyDistArray_NewViewArray_PROTO (PyArrayObject *orig_ary, PyArrayObject *new_ary, int nslice, dndslice slice[NPY_MAXDIMS])
 
 /* Total number of C API pointers */
-#define DistNumPy_API_pointers 10
+#define DistNumPy_API_pointers 11
 
 
 #ifdef DISTNUMPY_MODULE
@@ -83,7 +86,7 @@ static PyDistArray_PutItem_RETURN PyDistArray_PutItem PyDistArray_PutItem_PROTO;
 static PyDistArray_ProcGridSet_RETURN PyDistArray_ProcGridSet PyDistArray_ProcGridSet_PROTO;
 static PyDistArray_UnDist_RETURN PyDistArray_UnDist PyDistArray_UnDist_PROTO;
 static PyDistArray_IsDist_RETURN PyDistArray_IsDist PyDistArray_IsDist_PROTO;
-
+static PyDistArray_NewViewArray_RETURN PyDistArray_NewViewArray PyDistArray_NewViewArray_PROTO;
 
 #else
 /* This section is used in modules that use distnumpy's API */
@@ -119,6 +122,9 @@ static void **DistNumPy_API;
 
  #define PyDistArray_IsDist \
  (*(PyDistArray_IsDist_RETURN (*)PyDistArray_IsDist_PROTO) DistNumPy_API[PyDistArray_IsDist_NUM])
+
+#define PyDistArray_NewViewArray \
+ (*(PyDistArray_NewViewArray_RETURN (*)PyDistArray_NewViewArray_PROTO) DistNumPy_API[PyDistArray_NewViewArray_NUM])
 
 /* Return -1 and set exception on error, 0 on success. */
 static int

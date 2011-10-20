@@ -52,6 +52,23 @@ dndview *handle_NewBaseArray(dndarray *ary, dndview *view);
 
 /*
  *===================================================================
+ * Create a new view of an array and updates the PyArrayObject.
+ * Return -1 and set exception on error, 0 on success.
+ */
+static int
+PyDistArray_NewViewArray(PyArrayObject *orig_ary, PyArrayObject *new_ary,
+                         int nslice, dndslice slice[NPY_MAXDIMS]);
+
+/*===================================================================
+ *
+ * Handler for PyDistArray_NewViewArray.
+ * Return NULL and set exception on error.
+ * Return a pointer to the new dndview on success.
+ */
+dndview *handle_NewViewArray(dndview *orgview, dndview *newview);
+
+/*
+ *===================================================================
  * Delete array view.
  * When it is the last view of the base array, the base array is de-
  * allocated.

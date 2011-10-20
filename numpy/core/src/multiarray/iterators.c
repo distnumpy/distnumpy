@@ -179,6 +179,127 @@ parse_index(PyArrayObject *self, PyObject *op,
     return nd_new;
 }
 
+/* DISTNUMPY (We need two extra parameters) */
+NPY_NO_EXPORT int
+parse_dist_index(PyArrayObject *self, PyObject *op, npy_intp *dimensions,
+                 npy_intp *strides, npy_intp *offset_ptr,
+                 int *nslice, dndslice *slice)
+{
+    int i, j, n;
+    int nd_old, nd_new, n_add, n_pseudo;
+    npy_intp n_steps, start, offset, step_size;
+    PyObject *op1 = NULL;
+    int is_slice;
+    int ret_nslice = 0;
+
+    if (PySlice_Check(op) || op == Py_Ellipsis || op == Py_None) {
+        n = 1;
+        op1 = op;
+        Py_INCREF(op);
+        /* this relies on the fact that n==1 for loop below */
+        is_slice = 1;
+    }
+    else {
+        if (!PySequence_Check(op)) {
+            PyErr_SetString(PyExc_IndexError,
+                            "index must be either an int "\
+                            "or a sequence");
+            return -1;
+        }
+        n = PySequence_Length(op);
+        is_slice = 0;
+    }
+
+    nd_old = nd_new = 0;
+
+    offset = 0;
+    for (i = 0; i < n; i++) {
+        if (!is_slice) {
+            if (!(op1=PySequence_GetItem(op, i))) {
+                PyErr_SetString(PyExc_IndexError,
+                                "invalid index");
+                return -1;
+            }
+        }
+        start = parse_subindex(op1, &step_size, &n_steps,
+                               nd_old < self->nd ?
+                               self->dimensions[nd_old] : 0);
+        Py_DECREF(op1);
+        if (start == -1) {
+            break;
+        }
+        if (n_steps == PseudoIndex) {
+            dimensions[nd_new] = 1; strides[nd_new] = 0;
+            slice[ret_nslice].start = 0;
+            slice[ret_nslice].step = 0;
+            slice[ret_nslice].nsteps = PseudoIndex;
+            nd_new++; ret_nslice++;
+        }
+        else {
+            if (n_steps == RubberIndex) {
+                for (j = i + 1, n_pseudo = 0; j < n; j++) {
+                    op1 = PySequence_GetItem(op, j);
+                    if (op1 == Py_None) {
+                        n_pseudo++;
+                    }
+                    Py_DECREF(op1);
+                }
+                n_add = self->nd-(n-i-n_pseudo-1+nd_old);
+                if (n_add < 0) {
+                    PyErr_SetString(PyExc_IndexError,
+                                    "too many indices");
+                    return -1;
+                }
+                for (j = 0; j < n_add; j++) {
+                    dimensions[nd_new] = \
+                        self->dimensions[nd_old];
+                    strides[nd_new] = \
+                        self->strides[nd_old];
+
+                    slice[ret_nslice].start = 0;
+                    slice[ret_nslice].step = 1;
+                    slice[ret_nslice].nsteps = self->dimensions[nd_old];
+                    nd_new++; nd_old++; ret_nslice++;
+                }
+            }
+            else {
+                if (nd_old >= self->nd) {
+                    PyErr_SetString(PyExc_IndexError,
+                                    "too many indices");
+                    return -1;
+                }
+                offset += self->strides[nd_old]*start;
+                nd_old++;
+                if (n_steps != SingleIndex) {
+                    dimensions[nd_new] = n_steps;
+                    strides[nd_new] = step_size * \
+                        self->strides[nd_old-1];
+                    nd_new++;
+                }
+                slice[ret_nslice].start = start;
+                slice[ret_nslice].step = step_size;
+                slice[ret_nslice].nsteps = n_steps;
+                ret_nslice++;
+            }
+        }
+    }
+    if (i < n) {
+        return -1;
+    }
+    n_add = self->nd-nd_old;
+    for (j = 0; j < n_add; j++) {
+        dimensions[nd_new] = self->dimensions[nd_old];
+        strides[nd_new] = self->strides[nd_old];
+        slice[ret_nslice].start = 0;
+        slice[ret_nslice].step = 1;
+        slice[ret_nslice].nsteps = self->dimensions[nd_old];
+        nd_new++; nd_old++; ret_nslice++;
+    }
+    *offset_ptr = offset;
+    *nslice = ret_nslice;
+    return nd_new;
+}
+
 static int
 slice_coerce_index(PyObject *o, npy_intp *v)
 {

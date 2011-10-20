@@ -19,4 +19,10 @@ slice_GetIndices(PySliceObject *r, intp length,
                  intp *start, intp *stop, intp *step,
                  intp *slicelength);
 
+/* DISTNUMPY */
+NPY_NO_EXPORT int
+parse_dist_index(PyArrayObject *self, PyObject *op, npy_intp *dimensions,
+                 npy_intp *strides, npy_intp *offset_ptr,
+                 int *nslice, dndslice *slice);
+
 #endif

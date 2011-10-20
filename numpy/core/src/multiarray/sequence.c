@@ -72,6 +72,13 @@ array_slice(PyArrayObject *self, Py_ssize_t ilow,
                              self->nd, self->dimensions,
                              self->strides, data,
                              self->flags, (PyObject *)self);
+    /* DISTNUMPY */
+    if(PyDistArray_IsDist(self))
+    {
+        dndslice slice = {ilow, 1, self->dimensions[0]};
+        if(PyDistArray_NewViewArray(self, r, 1, &slice) == -1)
+            return NULL;
+    }
     self->dimensions[0] = l;
     if (r == NULL) {
         return NULL;

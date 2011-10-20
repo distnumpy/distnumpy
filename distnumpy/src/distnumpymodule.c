@@ -221,10 +221,12 @@ PyDistArray_MasterSlaveSplit(PyObject *self, PyObject *args)
                 handle_DelViewArray(*((npy_intp*)msg_data));
                 break;
             case DNPY_CREATE_VIEW:
-                d1 = *((npy_intp*)msg_data);
-                t1 = msg_data+sizeof(npy_intp);
-                //do_CREATE_VIEW(d1, (dndview*) t1);
+            {
+                dndview *v1 = get_dndview(*((npy_intp*)msg_data));
+                dndview *v2 = (dndview *)(msg_data+sizeof(npy_intp));
+                handle_NewViewArray(v1,v2);
                 break;
+            }
             case DNPY_SHUTDOWN:
                 shutdown = 1;
                 break;
@@ -347,6 +349,7 @@ initdistnumpy(void)
     DistNumPy_API[PyDistArray_ProcGridSet_NUM] = (void *)PyDistArray_ProcGridSet;
     DistNumPy_API[PyDistArray_UnDist_NUM] = (void *)PyDistArray_UnDist;
     DistNumPy_API[PyDistArray_IsDist_NUM] = (void *)PyDistArray_IsDist;
+    DistNumPy_API[PyDistArray_NewViewArray_NUM] = (void *)PyDistArray_NewViewArray;
 
     /* Create a CObject containing the API pointer array's address */
     c_api_object = PyCObject_FromVoidPtr((void *)DistNumPy_API, NULL);
