@@ -35,8 +35,8 @@ extern "C" {
 #define DNPY_DIST_ONENODE 0x4000
 
 //Easy attribute retrievals.
-#define PyDistArray_ISDIST(m) PyArray_CHKFLAGS(m,DNPY_DIST)
-#define PyDistArray_ISDIST_ONENODE(m) PyArray_CHKFLAGS(m,DNPY_DIST_ONENODE)
+#define PyDistArray_WANT_DIST(m) PyArray_CHKFLAGS(m,DNPY_DIST)
+#define PyDistArray_WANT_ONENODE(m) PyArray_CHKFLAGS(m,DNPY_DIST_ONENODE)
 #define PyDistArray_ARRAY(obj) (((PyArrayObject *)(obj))->distary)
 
 //Import the API.

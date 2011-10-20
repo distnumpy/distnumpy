@@ -346,6 +346,7 @@ initdistnumpy(void)
     DistNumPy_API[PyDistArray_PutItem_NUM] = (void *)PyDistArray_PutItem;
     DistNumPy_API[PyDistArray_ProcGridSet_NUM] = (void *)PyDistArray_ProcGridSet;
     DistNumPy_API[PyDistArray_UnDist_NUM] = (void *)PyDistArray_UnDist;
+    DistNumPy_API[PyDistArray_IsDist_NUM] = (void *)PyDistArray_IsDist;
 
     /* Create a CObject containing the API pointer array's address */
     c_api_object = PyCObject_FromVoidPtr((void *)DistNumPy_API, NULL);

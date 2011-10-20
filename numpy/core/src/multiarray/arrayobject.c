@@ -224,14 +224,6 @@ PyArray_TypeNumFromName(char *str)
 static void
 array_dealloc(PyArrayObject *self) {
 
-    /* DISTNUMPY */
-    if(PyDistArray_ISDIST(self))
-        if(PyDistArray_DelViewArray(self) == -1)
-        {
-            PyErr_Print();
-            PyErr_Clear();
-        }
-
     _array_dealloc_buffer_info(self);
 
     if (self->weakreflist != NULL) {
@@ -276,9 +268,17 @@ array_dealloc(PyArrayObject *self) {
              */
         }
         /* DISTNUMPY */
-        if(!PyDistArray_ISDIST(self))
+        if(PyDistArray_ARRAY(self) == NULL)
             PyDataMem_FREE(self->data);
     }
+
+    /* DISTNUMPY */
+    if(PyDistArray_ARRAY(self) != NULL)
+        if(PyDistArray_DelViewArray(self) == -1)
+        {
+            PyErr_Print();
+            PyErr_Clear();
+        }
 
     PyDimMem_FREE(self->dimensions);
     Py_DECREF(self->descr);

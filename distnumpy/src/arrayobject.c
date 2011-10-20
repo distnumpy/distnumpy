@@ -19,6 +19,18 @@
 
 /*
  *===================================================================
+ * Check whether the array distributed or not.
+ */
+static int
+PyDistArray_IsDist(PyArrayObject *ary)
+{
+    if(PyDistArray_ARRAY(ary) != NULL)
+        return PyDistArray_ARRAY(ary)->base->isdist;
+    return 0;//False
+}/* PyDistArray_IsDist */
+
+/*
+ *===================================================================
  * Create a new base array and updates the PyArrayObject.
  * If 'one_node_dist_rank' is positive it specifies the rank of an
  * one-node-distribution.

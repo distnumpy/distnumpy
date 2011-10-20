@@ -61,8 +61,13 @@ extern "C" {
 #define PyDistArray_UnDist_RETURN int
 #define PyDistArray_UnDist_PROTO (dndarray *ary)
 
+#define PyDistArray_IsDist_NUM 9
+#define PyDistArray_IsDist_RETURN int
+#define PyDistArray_IsDist_PROTO (PyArrayObject *ary)
+
+
 /* Total number of C API pointers */
-#define DistNumPy_API_pointers 9
+#define DistNumPy_API_pointers 10
 
 
 #ifdef DISTNUMPY_MODULE
@@ -77,6 +82,7 @@ static PyDistArray_GetItem_RETURN PyDistArray_GetItem PyDistArray_GetItem_PROTO;
 static PyDistArray_PutItem_RETURN PyDistArray_PutItem PyDistArray_PutItem_PROTO;
 static PyDistArray_ProcGridSet_RETURN PyDistArray_ProcGridSet PyDistArray_ProcGridSet_PROTO;
 static PyDistArray_UnDist_RETURN PyDistArray_UnDist PyDistArray_UnDist_PROTO;
+static PyDistArray_IsDist_RETURN PyDistArray_IsDist PyDistArray_IsDist_PROTO;
 
 
 #else
@@ -110,6 +116,9 @@ static void **DistNumPy_API;
 
 #define PyDistArray_UnDist \
  (*(PyDistArray_UnDist_RETURN (*)PyDistArray_UnDist_PROTO) DistNumPy_API[PyDistArray_UnDist_NUM])
+
+ #define PyDistArray_IsDist \
+ (*(PyDistArray_IsDist_RETURN (*)PyDistArray_IsDist_PROTO) DistNumPy_API[PyDistArray_IsDist_NUM])
 
 /* Return -1 and set exception on error, 0 on success. */
 static int

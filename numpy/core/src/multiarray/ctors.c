@@ -677,7 +677,7 @@ PyArray_AssignFromSequence(PyArrayObject *self, PyObject *v)
         return -1;
     }
     /* DISTNUMPY */
-    if(PyDistArray_ISDIST(self))
+    if(PyDistArray_WANT_DIST(self))
     {
         npy_intp coords[NPY_MAXDIMS];
         return setDistArrayFromSequence(self, v, 0, coords);
@@ -1139,12 +1139,13 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
     }
 
     /* DISTNUMPY */
+    PyDistArray_ARRAY(self) = NULL;
     self->data = data;
     if (self->data == NULL) {
-        if(PyDistArray_ISDIST(self))
+        if(PyDistArray_WANT_DIST(self))
         {
             npy_intp onedist = -1;
-            if(PyDistArray_ISDIST_ONENODE(self))
+            if(PyDistArray_WANT_ONENODE(self))
             {
                 onedist = PyInt_AsLong(obj);
                 obj = NULL;
@@ -1186,15 +1187,13 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
         self->flags &= ~OWNDATA;
 
         /* DISTNUMPY */
-        if(PyDistArray_ISDIST(self))
+        if(PyDistArray_WANT_DIST(self))
         {
             PyErr_SetString(PyExc_RuntimeError,
-                            "PyArray_NewFromDescr does not support "
+                            "PyArray_NewFromDescr() does not support "
                             "creating a view based on a distributed "
                             "array. Only the creations of new arrays "
                             "are supported\n");
-            //The array never really became distributed.
-            self->flags &= ~DNPY_DIST;
             goto fail;
         }
     }

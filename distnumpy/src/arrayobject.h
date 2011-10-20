@@ -27,6 +27,13 @@ extern "C" {
 
 /*
  *===================================================================
+ * Check whether the array distributed or not.
+ */
+static int
+PyDistArray_IsDist(PyArrayObject *ary);
+
+/*
+ *===================================================================
  * Create a new base array and updates the PyArrayObject.
  * If 'one_node_dist_rank' is positive it specifies the rank of an
  * one-node-distribution.
