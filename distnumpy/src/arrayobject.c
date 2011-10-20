@@ -17,6 +17,10 @@
  * along with DistNumPy. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
+#include <sys/mman.h>
+#include <signal.h>
+
 /*
  *===================================================================
  * Check whether the array distributed or not.
@@ -485,7 +489,6 @@ int handle_PutGetItem(int Direction, dndview *view, char* item,
  */
 int PyDistArray_UnDist(dndarray *ary)
 {
-
     #ifndef DNPY_SPMD
         msg[0] = DNPY_UNDIST;
         msg[1] = ary->uid;
@@ -493,7 +496,51 @@ int PyDistArray_UnDist(dndarray *ary)
         msg2slaves(msg, 3*sizeof(npy_intp));
     #endif
 
-    return handle_UnDist(ary);
+    if(ary->isdist)
+    {
+        //Un-protect the memory.
+        if(mprotect(PyArray_DATA(ary->pyary), ary->nelem * ary->elsize,
+                    PROT_READ|PROT_WRITE) == -1)
+        {
+            int errsv = errno;//mprotect() sets the errno.
+            PyErr_Format(PyExc_RuntimeError, "PyDistArray_UnDist: "
+                         "could not un-protect a data region. "
+                         "Returned error code by mprotect: %s.",
+                         strerror(errsv));
+            return -1;
+        }
+
+        //Transfer all items to the pyary.
+        npy_intp coord[NPY_MAXDIMS];
+        memset(coord, 0, ary->ndims * sizeof(npy_intp));
+        int notfinished = 1;
+        char *data = PyArray_DATA(ary->pyary);
+        while(notfinished)
+        {
+            PyDistArray_GetItem(ary->pyary, data, coord);
+            data += ary->elsize;
+            //Go to next coordinate.
+            int i;
+            for(i=ary->ndims-1; i >= 0; i--)
+            {
+                coord[i]++;
+                if(coord[i] >= ary->dims[i])
+                {
+                    //We are finished, if wrapping around.
+                    if(i == 0)
+                    {
+                        notfinished = 0;
+                        break;
+                    }
+                    coord[i] = 0;//Start coord.
+                }
+                else
+                    break;
+            }
+        }
+    }
+    ary->isdist = 0;//Not distributed anymore.
+    return 0;
 } /* PyDistArray_UnDist */
 
 

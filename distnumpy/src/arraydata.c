@@ -55,7 +55,7 @@ sighandler(int signal_number, siginfo_t *info, void *context)
     }
     else//Segfault triggered by accessing the protected data pointer.
     {
-        printf("Dist segfault on address %p, which is array: %p", info->si_addr, tary);
+        printf("Dist segfault on address %p, which is array: %p\n", info->si_addr, tary);
         signal(signal_number, SIG_DFL);
     }
 }

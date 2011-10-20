@@ -677,7 +677,7 @@ PyArray_AssignFromSequence(PyArrayObject *self, PyObject *v)
         return -1;
     }
     /* DISTNUMPY */
-    if(PyDistArray_WANT_DIST(self))
+    if(PyDistArray_IsDist(self))
     {
         npy_intp coords[NPY_MAXDIMS];
         return setDistArrayFromSequence(self, v, 0, coords);
@@ -1197,6 +1197,9 @@ PyArray_NewFromDescr(PyTypeObject *subtype, PyArray_Descr *descr, int nd,
             goto fail;
         }
     }
+    //The array does not WANT to be distributed anymore. Now it is
+    //either distributed or not.
+    self->flags &= ~DNPY_DIST;
 
     /*
      * If the strides were provided to the function, need to
